@@ -27,32 +27,34 @@ class Bin:
     def isempty(self):
         return len(self.items) == 0
 class Solution:
-    def __init__(self, problem, bins):
+    def __init__(self, problem):
         self.problem= problem
-        self.bins = bins
-        self.bins_number = len(bins)
-global best_solution
-best_solution = None
-def emptybin_check(solution):
+        self.bins = []
+        self.bins_number = 0
+def emptybin_check(solution:Solution):
     for bin in solution.bins:
         if bin.isempty():
             solution.bins.remove(bin)
     return solution
-def ShiftStrategy(solution):
-    sorted_bins = sorted(solution.bins, key=lambda bin: bin.cap_left)  # sort bins from small left capacity to big left capacity
+def ShiftStrategy(solution:Solution):
+    sorted_bins = [Bin(solution.problem.capacity)]
+    sorted_bins = copy.deepcopy(solution.bins)
+    sorted_bins = sorted(sorted_bins,key=lambda bin: bin.cap_left)  # sort bins from small left capacity to big left capacity
     for item in sorted_bins[-1].items:
         for bin in sorted_bins:
             if bin.can_fit(item):
                 bin.add_item(item)
                 sorted_bins[-1].remove_item(item)
-                bin.items.sort(key=lambda item: item.weight, reverse=True)
+                bin.items.sort(key=lambda item: item.weight)
                 break
             if sorted_bins[-1].isempty():
                 sorted_bins.pop()
                 break
-    solution.bins = sorted_bins
+    solution.bins = copy.deepcopy(sorted_bins)
+    solution.bins_number = len(solution.bins)
     emptybin_check(solution)   #check the empty bin
-def SplitStrategy(solution):
+    return solution
+def SplitStrategy(solution:Solution):
     avg_num_item = solution.problem.num_items // len(solution.bins)
     for bin in solution.bins:
         if len(bin.items) > avg_num_item:
@@ -62,14 +64,15 @@ def SplitStrategy(solution):
             for item in bin.items[:num_split]:
                 new_bin.add_item(item)
                 bin.remove_item(item)
-            bin.items = bin.items[num_split:]
-            bin.items.sort(key=lambda item: item.weight, reverse=True)
-            new_bin.items.sort(key=lambda item: item.weight, reverse=True)
+            bin.items.sort(key=lambda item: item.weight)
+            new_bin.items.sort(key=lambda item: item.weight)
             solution.bins.append(new_bin)
-def Exchange_LBLI(solution):
+    solution.bins_number = len(solution.bins)
+    return solution
+def Exchange_LBLI(solution:Solution):
     emptybin_check(solution)  # check the empty bin
     flag = False  # successfully exchanged flag
-    sorted_bins = solution.bins
+    sorted_bins = copy.deepcopy(solution.bins)
     sorted_bins.sort(key=lambda bin: bin.cap_left)  # sort bins from small left capacity to big left capacity
     unfull_index = []
     for i in range(1, len(sorted_bins)):
@@ -83,11 +86,11 @@ def Exchange_LBLI(solution):
     sorted_bins[0].items.sort(key=lambda item: item.weight, reverse=True)
     current_size = sorted_bins[0].items[0].weight
     sum_size = 0
-    for item in sorted_bins[target_index].items:
-        if item.weight + sum_size <= current_size + sorted_bins[0].cap_left:
-            target_items.append(item)
+    for i in range(len(sorted_bins[target_index].items)):
+        if sorted_bins[target_index].items[i].weight + sum_size <= current_size + sorted_bins[0].cap_left:
+            target_items.append(sorted_bins[target_index].items[i])
             target_indexes.append(i)
-            sum_size += item.weight
+            sum_size += sorted_bins[target_index].items[i].weight
             can_exchange1 = True
     if sum_size + sorted_bins[target_index].cap_left >= current_size:
         for i in range(len(target_indexes)):
@@ -100,19 +103,21 @@ def Exchange_LBLI(solution):
         for item in target_items:
             sorted_bins[0].add_item(item)
         flag = True
-    solution.bins = sorted_bins
-def Exchange_randomBin_Reshuffle(solution):
+    solution.bins =copy.deepcopy(sorted_bins)
+    solution.bins_number = len(solution.bins)
+    return solution
+def Exchange_randomBin_Reshuffle(solution:Solution):
     emptybin_check(solution)  # check the empty bin
     sorted_bins = sorted(solution.bins, key=lambda bin: bin.cap_left, reverse=True)  # sort bins from big left capacity to small left capacity
     exchangeBin_index1 = 0
     exchangeBin_index2 = 1
     flag = False  # valid exchangeBin_index1 and exchangeBin_index2
-    sum_capacity_left = 0
+    sum_cap_left = 0
     for bin in sorted_bins:
-        sum_capacity_left += bin.cap_left
+        sum_cap_left += bin.cap_left
     while not flag:
-        random_pointer1 = random.randint(1, sum_capacity_left)  # the random number is from 1 to sum_capacity_left
-        random_pointer2 = random.randint(1, sum_capacity_left)  # the random number is from 1 to sum_capacity_left
+        random_pointer1 = random.randint(1, sum_cap_left)  # the random number is from 1 to sum_cap_left
+        random_pointer2 = random.randint(1, sum_cap_left)  # the random number is from 1 to sum_cap_left
         for i in range(len(sorted_bins)):
             random_pointer1 -= sorted_bins[i].cap_left
             if random_pointer1 <= 0:
@@ -142,12 +147,197 @@ def Exchange_randomBin_Reshuffle(solution):
                 exchangeBin1.add_item(whole_items[j])
             else:
                 exchangeBin2.add_item(whole_items[j])
-            if exchangeBin1.capacity_left < best_exchangeBin1.capacity_left and exchangeBin1.capacity_left>=0 and exchangeBin2.capacity_left>=0:
-                best_exchangeBin1 = exchangeBin1;
-                best_exchangeBin2 = exchangeBin2;
+            if exchangeBin1.cap_left < best_exchangeBin1.cap_left and exchangeBin1.cap_left>=0 and exchangeBin2.cap_left>=0:
+                best_exchangeBin1 = copy.deepcopy(exchangeBin1);
+                best_exchangeBin2 = copy.deepcopy(exchangeBin2);
             
-    solution.bins[exchangeBin_index1] = best_exchangeBin1
-    solution.bins[exchangeBin_index2] = best_exchangeBin2 
+    solution.bins[exchangeBin_index1] = copy.deepcopy(best_exchangeBin1)
+    solution.bins[exchangeBin_index2] = copy.deepcopy(best_exchangeBin2) 
+
+    return solution
+def Neighbourhood(nb_space, solution:Solution):
+    if nb_space == 1:
+        # 200 neighbourhood1 solutions space with LBLI, RandomBin_Reshuffule and shift heuristics
+        neighbour_count = 100
+        local_best_solution = copy.deepcopy(solution)
+        for i in range(neighbour_count):
+            local_best_solution = Exchange_LBLI(local_best_solution)
+            local_best_solution = Exchange_randomBin_Reshuffle(local_best_solution)
+            local_best_solution = ShiftStrategy(local_best_solution)
+            local_best_solution = ShiftStrategy(local_best_solution)
+            print(local_best_solution.bins_number, solution.bins_number)
+            if local_best_solution.bins_number < solution.bins_number:
+                solution = copy.deepcopy(local_best_solution)
+    elif nb_space == 2:
+        # 200 neighbourhood2 solutions space with Split, LBLI and shift heuristics
+        neighbour_count = 50
+        local_best_solution = copy.deepcopy(solution)
+        for i in range(neighbour_count):
+            local_best_solution = SplitStrategy(local_best_solution)
+            local_best_solution = Exchange_LBLI(local_best_solution)
+            local_best_solution = ShiftStrategy(local_best_solution)
+            local_best_solution = ShiftStrategy(local_best_solution)
+            if local_best_solution.bins_number < solution.bins_number:
+                solution = copy.deepcopy(local_best_solution)
+    elif nb_space == 3:
+        # 200 neighbourhood3 solutions space with hybrid heuristics
+        neighbour_count = 10
+        local_best_solution = copy.deepcopy(solution)
+        for i in range(neighbour_count):
+            local_best_solution = Exchange_LBLI(local_best_solution)
+            local_best_solution = Exchange_randomBin_Reshuffle(local_best_solution)
+            local_best_solution = Exchange_randomBin_Reshuffle(local_best_solution)
+            local_best_solution = SplitStrategy(local_best_solution)
+            local_best_solution = Exchange_LBLI(local_best_solution)
+            local_best_solution = Exchange_randomBin_Reshuffle(local_best_solution)
+            local_best_solution = Exchange_randomBin_Reshuffle(local_best_solution)
+            local_best_solution = SplitStrategy(local_best_solution)
+            local_best_solution = Exchange_LBLI(local_best_solution)
+            local_best_solution = Exchange_LBLI(local_best_solution)
+            local_best_solution = Exchange_randomBin_Reshuffle(local_best_solution)
+            local_best_solution = Exchange_randomBin_Reshuffle(local_best_solution)
+            local_best_solution = ShiftStrategy(local_best_solution)
+            local_best_solution = ShiftStrategy(local_best_solution)
+            local_best_solution = ShiftStrategy(local_best_solution)
+            local_best_solution = ShiftStrategy(local_best_solution)
+            local_best_solution = ShiftStrategy(local_best_solution)
+            local_best_solution = ShiftStrategy(local_best_solution)
+            local_best_solution = ShiftStrategy(local_best_solution)
+            local_best_solution = ShiftStrategy(local_best_solution)
+            if local_best_solution.bins_number < solution.bins_number:
+                solution = copy.deepcopy(local_best_solution)
+    else:
+        print("Bad nb_space!")
+
+    return solution
+
+def Shaking(solution:Solution):
+    # reshuffle non-full bins
+    reshuffle_bins = []
+    reshuffle_items = []
+    sorted_bins1 = copy.deepcopy(solution.bins)
+    sorted_bins1.sort(key=lambda bin: bin.cap_left)  # sort bins from small left capacity to big left capacity
+    for bin in sorted_bins1:
+        if bin.cap_left == 0:
+            reshuffle_bins.append(bin)
+        else:
+            for item in bin.items:
+                reshuffle_items.append(item)
+    random.shuffle(reshuffle_items)
+    bin_capacity = solution.problem.capacity
+    flag_newBin = False
+    current_bin = Bin(bin_capacity)
+    # First Fit
+    current_bin.add_item(reshuffle_items[0])
+    reshuffle_bins.append(current_bin)
+    for i in range(1, len(reshuffle_items)):
+        for k in range(len(reshuffle_bins)):
+            # Search the first fitted bin for this item
+            if reshuffle_items[i].weight < reshuffle_bins[k].cap_left:
+                reshuffle_bins[k].add_item(reshuffle_items[i])
+                flag_newBin = False
+                break
+            flag_newBin = True
+        if flag_newBin:
+            # If there is no fitted bin before, then push a new bin to take the item.
+            bin = Bin(bin_capacity)
+            current_bin = bin
+            current_bin.add_item(reshuffle_items[i])
+            reshuffle_bins.append(current_bin)
+    solution.bins = copy.deepcopy(reshuffle_bins)
+    # choose two bins randomly, reshuffle the items of them and pack them randomly
+    exchangeBin_index1 = random.randint(0, len(solution.bins) - 1)
+    exchangeBin_index2 = random.randint(0, len(solution.bins) - 1)
+    emptybin_check(solution)  # check the empty bin
+    sorted_bins = copy.deepcopy(solution.bins)
+    sorted_bins.sort(key=lambda bin: bin.cap_left, reverse=True)  # sort bins from big left capacity to small left capacity
+    # store the whole items needed to be packed
+    whole_items = []
+    for item in sorted_bins[exchangeBin_index1].items:
+        whole_items.append(item)
+    for item in sorted_bins[exchangeBin_index2].items:
+        whole_items.append(item)
+    # check the random packing is valid
+    flag_valid_randomPack = False
+    while not flag_valid_randomPack:
+        exchangeBin1 = Bin(bin_capacity)
+        exchangeBin2 = Bin(bin_capacity)
+        random.shuffle(whole_items)
+        for j in range(len(whole_items)):
+            if whole_items[j].weight <= exchangeBin1.cap_left:
+                exchangeBin1.add_item(whole_items[j])
+            else:
+                exchangeBin2.add_item(whole_items[j])
+        if exchangeBin1.cap_left >= 0 and exchangeBin2.cap_left >= 0:
+            solution.bins[exchangeBin_index1] = copy.deepcopy(exchangeBin1)
+            solution.bins[exchangeBin_index2] = copy.deepcopy(exchangeBin2)
+            flag_valid_randomPack = True
+    # exchange randomly two items which is the largest item in each bin
+    flag = True
+    while flag:
+        exchangeBin_index1 = random.randint(0, len(solution.bins) - 1)
+        exchangeBin_index2 = random.randint(0, len(solution.bins) - 1)
+        while exchangeBin_index1 == exchangeBin_index2:
+            exchangeBin_index2 = random.randint(0, len(solution.bins) - 1)
+        can_exchange1 = (solution.bins[exchangeBin_index1].items[0].weight + solution.bins[exchangeBin_index1].cap_left) > solution.bins[exchangeBin_index2].items[0].weight
+        can_exchange2 = (solution.bins[exchangeBin_index2].items[0].weight + solution.bins[exchangeBin_index2].cap_left) > solution.bins[exchangeBin_index1].items[0].weight
+        if can_exchange1 and can_exchange2:
+            item1 = solution.bins[exchangeBin_index1].items[0]
+            item2 = solution.bins[exchangeBin_index2].items[0]
+            solution.bins[exchangeBin_index1].remove_item(item1)
+            solution.bins[exchangeBin_index2].remove_item(item2)
+            solution.bins[exchangeBin_index1].add_item(item2)
+            solution.bins[exchangeBin_index2].add_item(item1)
+            solution.bins[exchangeBin_index1].items.sort(key=lambda item: item.weight, reverse=True)
+            solution.bins[exchangeBin_index2].items.sort(key=lambda item: item.weight, reverse=True)
+            flag = False
+    return solution
+def Initial_solution(solution):
+    bin_capacity = solution.problem.capacity
+    flag_newBin = False
+    # This is for sorting items
+    sorted_items = copy.deepcopy(solution.problem.items)
+    sorted_items.sort(key=lambda item: item.weight)  # sort items from small-size to large-size
+    current_bin = Bin(bin_capacity)
+    #first fit
+    current_bin.add_item(sorted_items[0])
+    solution.bins.append(current_bin)
+    solution.bins_number += 1
+    for i in range(1, len(sorted_items)):
+        for k in range(len(solution.bins)):
+            # Search the first fitted bin for this item
+            if sorted_items[i].weight <= solution.bins[k].cap_left:
+                solution.bins[k].add_item(sorted_items[i])
+                flag_newBin = False
+                break
+            flag_newBin = True
+        if flag_newBin:
+            # If there is no fitted bin before, then push a new bin to take the item.
+            bin = Bin(bin_capacity)
+            current_bin = bin
+            current_bin.add_item(sorted_items[i])
+            solution.bins.append(current_bin)
+            solution.bins_number += 1
+    return solution
+
+def Variable_Neighbourhood_Search(problem):
+    current_solution = Solution(problem)
+    current_solution = Initial_solution(current_solution)
+    best_solution = copy.deepcopy(current_solution)
+    nb_space = 1
+    maxSpace = 2
+    while nb_space < maxSpace + 1:
+        n_best_solution = copy.deepcopy(best_solution)
+        current_solution=Neighbourhood(nb_space, current_solution)
+        if n_best_solution.bins_number <current_solution.bins_number:
+            current_solution = copy.deepcopy(n_best_solution)
+            nb_space = 1
+        else:
+            nb_space += 1
+    if current_solution.bins_number < best_solution.bins_number:
+        best_solution =copy.deepcopy(current_solution)
+    current_solution=Shaking(current_solution)
+    return best_solution      
 """ def evaluate(solution):
     if solution.bins_number- solution.problem.optimal_solution == 0:
         return 1000
@@ -372,13 +562,13 @@ def read_bin_packing_file(filename):
             problems.append(problem)
     return problems
 def main():
-    problems = read_bin_packing_file(r"C:\Users\scyth1\Desktop\AI method\binpack1.txt")
+    problems = read_bin_packing_file(r"C:\Users\scyth1\Desktop\AI method\AI\binpack1.txt")
     for problem in problems:
         
         print(problem.id)
         #best_solution = first_fit(problem)
-        best_solution = greedy_search(problem)
-        best_solution= genetic_algorithm(best_solution,population_size, mutation_rate, num_generations)
+        best_solution = Variable_Neighbourhood_Search(problem)
+        #best_solution= genetic_algorithm(best_solution,population_size, mutation_rate, num_generations)
         #best_solution = simulated_annealing(best_solution)
         print(best_solution.bins_number)
         print(problem.optimal_solution- best_solution.bins_number)
