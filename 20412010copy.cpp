@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cstring>
 #include <ctime>
+#include <math.h>
 
 using namespace std;
 
@@ -157,7 +158,7 @@ public:
                     bin.cap_left -= solution.bins[i].items[j].get_ItemWeight();
                 }
                 solution.bins[i].items.erase(solution.bins[i].items.begin(), solution.bins[i].items.begin()+place_split); // delete the chosen items from the current bin
-                sort(bin.items.rbegin(), bin.items.rend(), itemCmp);    // sort the
+                sort(bin.items.rbegin(), bin.items.rend(), itemCmp);    
                 sort(solution.bins[i].items.rbegin(), solution.bins[i].items.rend(), itemCmp);
                 solution.bins.push_back(bin);
                 break;
@@ -242,9 +243,10 @@ public:
         for(int i=0; i<solution.bins.size(); i++){
             sum_cap_left += solution.bins[i].cap_left;
         }
+
         while(!flag) {
-            int random_pointer1 = (rand() % sum_cap_left) + 1;  // the random number is from 1 to sum_cap_left
-            int random_pointer2 = (rand() % sum_cap_left) + 1;  // the random number is from 1 to sum_cap_left
+            int random_pointer1 = (rand() % sum_cap_left) + 1;  
+            int random_pointer2 = (rand() % sum_cap_left) + 1;  
             for (int i = 0; i < solution.bins.size(); i++) {
                 random_pointer1 -= solution.bins[i].cap_left;
                 if (random_pointer1 <= 0) {
@@ -565,21 +567,96 @@ public:
 
 
     }
-
-    // This fuction is used for variable neighbourhood search
-    void Variable_Neighbourhood_Search(Problem problem){
+    void Hyper_Heuristic(Problem problem){
         Solution current_solution;
         current_solution.problem = problem;
+        Solution best_solution;
+        clock_t time_start, time_fin;
+        time_start = clock();
+        Initial_Solution(current_solution);
+        time_fin = clock();
+        best_solution = current_solution;
+        best_solution = Variable_Neighbourhood_Search(current_solution, (double)(time_fin - time_start) / CLOCKS_PER_SEC);
+        if(best_solution.bins_number> current_solution.bins_number){
+            best_solution = current_solution;
+            current_solution = best_solution;
+        }
+        if(best_solution.bins_number== best_solution.problem.best_bins_number){
+            good_solutions.push_back(best_solution);
+            return;
+        }
+        time_fin= clock();
+        best_solution = Simmulated_Annealing(current_solution, (double)(time_fin - time_start) / CLOCKS_PER_SEC);
+        if(best_solution.bins_number> current_solution.bins_number){
+            best_solution = current_solution;
+            current_solution = best_solution;
+        }
+        if(best_solution.bins_number== best_solution.problem.best_bins_number){
+            good_solutions.push_back(best_solution);
+            return;
+        }
+        good_solutions.push_back(best_solution);
+    }
+    Solution Simmulated_Annealing(Solution &solution, double time_spent){
+        Solution current_solution = solution;
+        Solution best_solution;
+        best_solution = current_solution;
+        clock_t time_start, time_fin;
+        double T = 1000;
+        double end_T = 0.1;
+        double cooling_rate = 0.3;
+        time_start = clock();
+        best_solution = current_solution;
+        while(time_spent < MAX_TIME&& T > end_T){
+            // Simmulated Annealing
+            
+            int nb_space = 1;
+            int maxSpace = 3;
+            Solution n_best_solution;
+            n_best_solution = current_solution;
+            while(nb_space < maxSpace + 1){
+                Neighbourhood(nb_space, n_best_solution);
+                if(n_best_solution.bins_number< current_solution.bins_number){
+                    current_solution = n_best_solution;
+                    nb_space = 1;
+                }else{
+                    nb_space ++;
+                }
+            }
+            double delta = current_solution.bins_number - best_solution.bins_number;
+            if(delta < 0){
+                best_solution = current_solution;
+            }else{
+                double p = exp(-delta/T);
+                if(rand()/(RAND_MAX+1.0) < p){
+                    best_solution = current_solution;
+                }
+            }
+
+            if(best_solution.bins_number> current_solution.bins_number){
+                best_solution = current_solution;
+            }
+            if(best_solution.bins_number== best_solution.problem.best_bins_number){
+                time_fin = clock();
+                time_spent += (double)(time_fin - time_start) / CLOCKS_PER_SEC;
+                break;
+            }
+            time_fin = clock();
+            time_spent += (double)(time_fin - time_start) / CLOCKS_PER_SEC;            
+            T = T * (1 - cooling_rate);
+        }
+        return best_solution;
+    }
+    // This fuction is used for variable neighbourhood search
+    Solution Variable_Neighbourhood_Search(Solution &solution, double time_spent){
+        Solution current_solution = solution;
         Solution best_solution;
 
         clock_t time_start, time_fin;
         time_start = clock();
-        double time_spent = 0;
-        int shaking_times = 100;
-        Initial_Solution(current_solution);
         best_solution = current_solution;
 
-        while(time_spent < MAX_TIME&&shaking_times>0)
+        while(time_spent < MAX_TIME)
         {
             //variable neighbourhood search
             int nb_space = 1;
@@ -592,7 +669,7 @@ public:
             {
                 Neighbourhood(nb_space, n_best_solution);
 
-                if(n_best_solution.bins_number < current_solution.bins_number){
+                if(n_best_solution.bins_number< current_solution.bins_number){
                     current_solution = n_best_solution;
                     nb_space = 1;
                 }else{
@@ -603,28 +680,26 @@ public:
             // One round variable neighbourhood search ends.
 
             // If the best solution is better than current one for each round, replace it.
-            if(best_solution.bins_number > current_solution.bins_number)
+            if(best_solution.bins_number> current_solution.bins_number)
             {
                 best_solution = current_solution;
             }
 
-            //If the solution get the best bins_number solution of the problem, finish this problem early
-            if(best_solution.bins_number == best_solution.problem.best_bins_number ){
+            //If the solution get the best bins_numbersolution of the problem, finish this problem early
+            if(best_solution.bins_number== best_solution.problem.best_bins_number){
                 time_fin = clock();
-                time_spent = (double)(time_fin - time_start) / CLOCKS_PER_SEC;
+                time_spent += (double)(time_fin - time_start) / CLOCKS_PER_SEC;
                 break;
             }
 
             Shaking(current_solution);
-            shaking_times--;
+
 
             time_fin = clock();
-            time_spent = (double)(time_fin - time_start) / CLOCKS_PER_SEC;
+            time_spent += (double)(time_fin - time_start) / CLOCKS_PER_SEC;
         }
-
-        good_solutions.push_back(best_solution);
+        return best_solution;
     }
-
     // This function is used for outputing the solutions to the target file.
     void output_solutions(string data_file){
         ofstream outfile;
@@ -699,8 +774,13 @@ int main(int argc, char * argv[]){
     bin_packing_problem.load_problems(data_file);   // load the file with problems
 
     for(int i = 0; i<bin_packing_problem.get_problems().size(); i++){
-        bin_packing_problem.Variable_Neighbourhood_Search(bin_packing_problem.get_problems()[i]);    // Variable Neighbourhood Search
+        time_t start, end;
+        start = time(NULL);
+        bin_packing_problem.Hyper_Heuristic(bin_packing_problem.get_problems()[i]);    // Variable Neighbourhood Search
+        end = time(NULL);
+        cout << "Problem " << i+1 << " is solved in " << difftime(end, start) << " seconds." << endl;
     }
+    
 
     bin_packing_problem.output_solutions(solution_file);    // output the file with solutions
 
