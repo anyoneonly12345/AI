@@ -6,8 +6,7 @@
 #include <algorithm>
 #include <cstring>
 #include <ctime>
-#include <math.h>
-#include <cmath>
+
 using namespace std;
 
 int MAX_TIME = 30;  // the maximum running time for each problem instance
@@ -566,59 +565,21 @@ public:
 
 
     }
-    Solution Simmulate_Anneling(Solution &solution){
-        Solution current_solution;
-        current_solution = solution;
-        Solution best_solution;
-        best_solution = current_solution;
-        float T = 1000;
-        float T_min = 0.0001;
-        float alpha = 0.9;
-        while(T > T_min){
-            int neighbour_count = 100;
-            for(int i = 0; i<neighbour_count; i++){
-                Solution new_solution = current_solution;
-                Shaking(new_solution);
-                float delta = new_solution.bins_number - current_solution.bins_number;
-                if(delta < 0){
-                    current_solution = new_solution;
-                    if(new_solution.bins_number < best_solution.bins_number){
-                        best_solution = new_solution;
-                    }
-                }else{
-                    float p = exp(-delta/T);
-                    float r = (float)rand()/(float)(RAND_MAX);
-                    if(r < p){
-                        current_solution = new_solution;
-                    }
-                }
-            }
-            T = T*alpha;
-        }
-        solution = best_solution;
-        return best_solution;
-    }
-    void Hyper_Heuristic(Problem &problem){
-        Solution solution;
-        solution.problem = problem;
-        Initial_Solution(solution);
-        solution = Simmulate_Anneling(solution);
-        solution = Variable_Neighbourhood_Search(solution);
-        good_solutions.push_back(solution);
-    }
+
     // This fuction is used for variable neighbourhood search
-    Solution Variable_Neighbourhood_Search(Solution &solution){
-        Solution current_solution = solution;
+    void Variable_Neighbourhood_Search(Problem problem){
+        Solution current_solution;
+        current_solution.problem = problem;
         Solution best_solution;
 
         clock_t time_start, time_fin;
         time_start = clock();
         double time_spent = 0;
-        int shaking_number = 30;
+
         Initial_Solution(current_solution);
         best_solution = current_solution;
 
-        while(time_spent < MAX_TIME && shaking_number > 0)
+        while(time_spent < MAX_TIME)
         {
             //variable neighbourhood search
             int nb_space = 1;
@@ -656,11 +617,11 @@ public:
 
             Shaking(current_solution);
 
-            shaking_number --;
+
             time_fin = clock();
             time_spent = (double)(time_fin - time_start) / CLOCKS_PER_SEC;
         }
-        return best_solution;
+        good_solutions.push_back(best_solution);
     }
 
     // This function is used for outputing the solutions to the target file.
@@ -737,11 +698,7 @@ int main(int argc, char * argv[]){
     bin_packing_problem.load_problems(data_file);   // load the file with problems
 
     for(int i = 0; i<bin_packing_problem.get_problems().size(); i++){
-        time_t start, end;
-        start = time(NULL);
-        bin_packing_problem.Variable_Neighbourhood_Search(bin_packing_problem.get_problems()[i]); 
-        end = time(NULL);
-        cout << "Problem " << i+1 << " is solved in " << difftime(end, start) << " seconds." << endl;
+        bin_packing_problem.Variable_Neighbourhood_Search(bin_packing_problem.get_problems()[i]);    // Variable Neighbourhood Search
     }
 
     bin_packing_problem.output_solutions(solution_file);    // output the file with solutions
