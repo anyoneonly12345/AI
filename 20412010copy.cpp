@@ -575,11 +575,11 @@ public:
         clock_t time_start, time_fin;
         time_start = clock();
         double time_spent = 0;
-
+        int shaking_times = 100;
         Initial_Solution(current_solution);
         best_solution = current_solution;
 
-        while(time_spent < MAX_TIME)
+        while(time_spent < MAX_TIME&&shaking_times>0)
         {
             //variable neighbourhood search
             int nb_space = 1;
@@ -616,11 +616,12 @@ public:
             }
 
             Shaking(current_solution);
-
+            shaking_times--;
 
             time_fin = clock();
             time_spent = (double)(time_fin - time_start) / CLOCKS_PER_SEC;
         }
+
         good_solutions.push_back(best_solution);
     }
 
