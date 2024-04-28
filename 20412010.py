@@ -33,8 +33,122 @@ class Solution:
         self.bins_number = len(bins)
 global best_solution
 best_solution = None
-        
-def evaluate(solution):
+def emptybin_check(solution):
+    for bin in solution.bins:
+        if bin.isempty():
+            solution.bins.remove(bin)
+    return solution
+def ShiftStrategy(solution):
+    sorted_bins = sorted(solution.bins, key=lambda bin: bin.cap_left)  # sort bins from small left capacity to big left capacity
+    for item in sorted_bins[-1].items:
+        for bin in sorted_bins:
+            if bin.can_fit(item):
+                bin.add_item(item)
+                sorted_bins[-1].remove_item(item)
+                bin.items.sort(key=lambda item: item.weight, reverse=True)
+                break
+            if sorted_bins[-1].isempty():
+                sorted_bins.pop()
+                break
+    solution.bins = sorted_bins
+    emptybin_check(solution)   #check the empty bin
+def SplitStrategy(solution):
+    avg_num_item = solution.problem.num_items // len(solution.bins)
+    for bin in solution.bins:
+        if len(bin.items) > avg_num_item:
+            num_split = len(bin.items) // 2
+            random.shuffle(bin.items)
+            new_bin = Bin(solution.problem.capacity)
+            for item in bin.items[:num_split]:
+                new_bin.add_item(item)
+                bin.remove_item(item)
+            bin.items = bin.items[num_split:]
+            bin.items.sort(key=lambda item: item.weight, reverse=True)
+            new_bin.items.sort(key=lambda item: item.weight, reverse=True)
+            solution.bins.append(new_bin)
+def Exchange_LBLI(solution):
+    emptybin_check(solution)  # check the empty bin
+    flag = False  # successfully exchanged flag
+    sorted_bins = solution.bins
+    sorted_bins.sort(key=lambda bin: bin.cap_left)  # sort bins from small left capacity to big left capacity
+    unfull_index = []
+    for i in range(1, len(sorted_bins)):
+        if sorted_bins[i].cap_left > 0:
+            unfull_index.append(i)
+    target_index = random.choice(unfull_index)
+    target_items = []
+    target_indexes = []
+    can_exchange1 = False
+    can_exchange2 = False
+    sorted_bins[0].items.sort(key=lambda item: item.weight, reverse=True)
+    current_size = sorted_bins[0].items[0].weight
+    sum_size = 0
+    for item in sorted_bins[target_index].items:
+        if item.weight + sum_size <= current_size + sorted_bins[0].cap_left:
+            target_items.append(item)
+            target_indexes.append(i)
+            sum_size += item.weight
+            can_exchange1 = True
+    if sum_size + sorted_bins[target_index].cap_left >= current_size:
+        for i in range(len(target_indexes)):
+            sorted_bins[target_index].remove_item(sorted_bins[target_index].items[target_indexes[i] - i])
+        can_exchange2 = True
+    if can_exchange1 and can_exchange2:
+        sorted_bins[target_index].add_item(sorted_bins[0].items[0])
+        sorted_bins[target_index].items.sort(key=lambda item: item.weight, reverse=True)
+        sorted_bins[0].remove_item(sorted_bins[0].items[0])
+        for item in target_items:
+            sorted_bins[0].add_item(item)
+        flag = True
+    solution.bins = sorted_bins
+def Exchange_randomBin_Reshuffle(solution):
+    emptybin_check(solution)  # check the empty bin
+    sorted_bins = sorted(solution.bins, key=lambda bin: bin.cap_left, reverse=True)  # sort bins from big left capacity to small left capacity
+    exchangeBin_index1 = 0
+    exchangeBin_index2 = 1
+    flag = False  # valid exchangeBin_index1 and exchangeBin_index2
+    sum_capacity_left = 0
+    for bin in sorted_bins:
+        sum_capacity_left += bin.cap_left
+    while not flag:
+        random_pointer1 = random.randint(1, sum_capacity_left)  # the random number is from 1 to sum_capacity_left
+        random_pointer2 = random.randint(1, sum_capacity_left)  # the random number is from 1 to sum_capacity_left
+        for i in range(len(sorted_bins)):
+            random_pointer1 -= sorted_bins[i].cap_left
+            if random_pointer1 <= 0:
+                exchangeBin_index1 = i
+                break
+        for i in range(len(sorted_bins)):
+            random_pointer2 -= sorted_bins[i].cap_left
+            if random_pointer2 <= 0:
+                exchangeBin_index2 = i
+                break
+        if exchangeBin_index1 != exchangeBin_index2:  # If the indexes of the two exchanged Bin are the same, randomly choose two again
+            flag = True
+    shuffle_count = 200
+    whole_items = []
+    for item in solution.bins[exchangeBin_index1].items:
+        whole_items.append(item)
+    for item in solution.bins[exchangeBin_index2].items:
+        whole_items.append(item)
+    best_exchangeBin1 = Bin(solution.problem.capacity)
+    best_exchangeBin2 = Bin(solution.problem.capacity)
+    for i in range(shuffle_count):
+        exchangeBin1 = Bin(solution.problem.capacity)
+        exchangeBin2 = Bin(solution.problem.capacity)
+        random.shuffle(whole_items)
+        for j in range(len(whole_items)):
+            if whole_items[j].weight <= exchangeBin1.cap_left:
+                exchangeBin1.add_item(whole_items[j])
+            else:
+                exchangeBin2.add_item(whole_items[j])
+            if exchangeBin1.capacity_left < best_exchangeBin1.capacity_left and exchangeBin1.capacity_left>=0 and exchangeBin2.capacity_left>=0:
+                best_exchangeBin1 = exchangeBin1;
+                best_exchangeBin2 = exchangeBin2;
+            
+    solution.bins[exchangeBin_index1] = best_exchangeBin1
+    solution.bins[exchangeBin_index2] = best_exchangeBin2 
+""" def evaluate(solution):
     if solution.bins_number- solution.problem.optimal_solution == 0:
         return 1000
     elif solution.bins_number- solution.problem.optimal_solution == 1:
@@ -106,7 +220,7 @@ def genetic_algorithm(solution,population_size, mutation_rate, num_generations):
         population = offspring
 
 
-    return best_solution
+    return best_solution """
 def greedy_search(problem):
     bins = []
     for item in sorted(problem.items, key=lambda x: x.weight, reverse=True):

@@ -78,16 +78,16 @@ public:
     // This funciton is used for loading the problems from the input file
     void load_problems(string data_file){
         
-        ifstream infile;
-        infile.open(data_file);
-        if(! infile.is_open()){
+        ifstream openfile;
+        openfile.open(data_file);
+        if(! openfile.is_open()){
             cout << "Data file "+data_file+" does not exist. Please check!\n" << endl;
             exit(2);
         }
 
         int temp;
         string str_temp;
-        infile >> temp;
+        openfile >> temp;
         problem_number = temp;
 
         //  initial problems
@@ -95,31 +95,31 @@ public:
 
         for(int i = 0; i<problem_number; i++){
 
-            infile >> str_temp;
+            openfile >> str_temp;
             my_problems[i].name = str_temp;
 
-            infile >> temp;
+            openfile >> temp;
             my_problems[i].bin_capacity = temp;
 
-            infile >> temp;
+            openfile >> temp;
             my_problems[i].item_number = temp;
     
-            infile >> temp;
+            openfile >> temp;
             my_problems[i].best_objective = temp;
 
             for(int j=0; j<my_problems[i].item_number; j++){
-                infile >> temp;
+                openfile >> temp;
                 Item item(temp, j);
                 my_problems[i].items.push_back(item);
             }
         }
-        infile.close();
+        openfile.close();
     }
 
     // This comparation function is used to compare two item sizes
     // If the size of item1 is smaller than the size of item2, return true, else false.
     static bool itemCmp(Item item1, Item item2){
-        if(item1.get_ItemSize()<item2.get_ItemSize())
+        if(item1.get_ItemSize()>item2.get_ItemSize())
         {
             return true;
         }
@@ -127,6 +127,8 @@ public:
             return false;
         }
     }
+    // This comparation function is used to compare two item sizes
+    // If the size of item2 is smaller than the size of item1, return true, else false.
 
     // This comparation function is used to compare left capacities of two bins
     // If the left capacity of bin1 is smaller than the left capacity of bin2, reutrn true, else return false.
@@ -394,7 +396,7 @@ public:
         {
             case 1:{
                 // 200 neighbourhood1 solutions space with LBLI, RandomBin_Reshuffule and shift heuristics
-                int neighbour_count = 200;
+                int neighbour_count = 100;
                 Solution local_best_solution = solution;
                 for(int i =0; i<neighbour_count; i++){
                     Exchange_LBLI(local_best_solution);
@@ -409,7 +411,7 @@ public:
             }
             case 2:{
                 // 200 neighbourhood2 solutions space with Split, LBLI and shift heuristics
-                int neighbour_count = 200;
+                int neighbour_count = 100;
                 Solution local_best_solution = solution;
                 for(int i =0; i<neighbour_count; i++){
                     SplitStrategy(local_best_solution);
@@ -424,7 +426,7 @@ public:
             }
             case 3:{
                 // 200 neighbourhood3 solutions space with hyprid heuristics
-                int neighbour_count = 200;
+                int neighbour_count = 100;
                 Solution local_best_solution = solution;
                 for(int i =0; i<neighbour_count; i++){
                     Exchange_LBLI(local_best_solution);
