@@ -277,39 +277,36 @@ def shaking(problem:Problem):
     problem = copy_problem
     return problem   
 
-def dpAns(space,items:list):
-    """
-    dynamic programming to get the best problem
-    items should no more than 30
-    """
+def find_best_item_combine(space,items:list):
     list = []
-    dp = []
+    binweight = []
     for i in range(len(items)):
         dict = {}
         list.append(dict)
     for j in range(space + 1):
-        dp.append(0)
+        binweight.append(0)
     for i in range(0,len(items),1):
         for j in range(space,-1,-1):
             list[i][j] = False
             if ( j>= items[i].weight ) :
-                if ( dp[j] <= dp[j-items[i].weight]+ items[i].weight ): 
-                    dp[j] = dp[j-items[i].weight]+items[i].weight
+                if ( binweight[j] <= binweight[j-items[i].weight]+ items[i].weight ): 
+                    binweight[j] = binweight[j-items[i].weight]+items[i].weight
                     list[i][j] = True
-    changeitems = []
+    select_item_to_change = []
     j = space
     for i in range(len(items),0,-1):
         if list[i - 1][j] == True:
-            changeitems.append(items[i - 1])
+            select_item_to_change.append(items[i - 1])
             j -= items[i - 1].weight
-    return changeitems,dp[space]
+    return select_item_to_change,binweight[space]
 
 def local_search( cap, num,items,Min,c_list):
     """
     deep first search to get a local problem for 
     single bin item packing
     """
-    Min = min(Min,cap)
+    if Min>cap:
+        Min = cap
     if (num == len(items)) :
         return
     if (cap-items[num].weight >= 0) :
@@ -317,7 +314,7 @@ def local_search( cap, num,items,Min,c_list):
         local_search(cap-items[num].weight ,num+1,items,Min,c_list)
     else:
         local_search(cap,num+1,items,Min,c_list)
-def changeitems(morebin,lessbin):
+def select_item_to_change(morebin,lessbin):
     """
     change one item from more bin to another bin make the space more
     """
@@ -327,9 +324,9 @@ def changeitems(morebin,lessbin):
         if item.type == "VLarge" :
             continue
         c_space = morebin.left_cap + item.weight
-        if c_space <= 20000 and len(lessbin.inputitem) <= 25:
+        if c_space <= 20000 :
             items = lessbin.inputitem
-            clist, c_sum= dpAns(c_space,items)
+            clist, c_sum= find_best_item_combine(c_space,items)
             # print(clist, c_sum)
         else:
             cap = morebin.cap
@@ -418,7 +415,7 @@ def Getmorecapleft(morebin,lessbin,type):
             c_space = morebin.left_cap + item.weight
             if c_space <= 20000 and len(morebin.inputitem) <= 25:
                 items = lessbin.inputitem
-                clist, c_sum= dpAns(c_space,items)
+                clist, c_sum= find_best_item_combine(c_space,items)
             else:
                 cap = morebin.cap
                 c_list = []
@@ -510,7 +507,7 @@ def dealExtra(problem:Problem):
     for morebin in problem.bins:
         toRemove = []
         for lessbin in problem.extrabins:
-            c_sum,clist,item = changeitems(morebin,lessbin)
+            c_sum,clist,item = select_item_to_change(morebin,lessbin)
             if c_sum == None:
                 continue
             else:
@@ -543,10 +540,7 @@ def bffExtra(problem:Problem):
                 break
     for item in toRemove:
         for bin in problem.extrabins:
-            try:
                 bin.removeitem(item)
-            except:
-                pass
     problem.resetbins()
     return problem
 
@@ -595,11 +589,8 @@ def mutiple_randomshake(problem):
         problem = randomShake(problem)
     return problem
 def process_problem2(problem, best_problem):
-    for i in range(20):
-        problem = mutiple_randomshake(problem)
-        problem,best_problem = neighbourhood2(problem, best_problem)
-        if len(best_problem.extrabins) <= 1:
-            break
+    problem = mutiple_randomshake(problem)
+    problem,best_problem = neighbourhood2(problem, best_problem)
     return problem, best_problem
 def process_problem3(problem, best_problem):
     for i in range(20):
@@ -610,6 +601,23 @@ def process_problem3(problem, best_problem):
         if len(best_problem.extrabins) <= 1:
             break
     return problem, best_problem
+def simulated_annealing(problem,best_problem,temperature=100, cooling_rate=0.8,end_temperature=20):
+    currentproblem = copy.deepcopy(problem)
+    newproblem = copy.deepcopy(problem)
+    while temperature > end_temperature:
+        print("Temperature",temperature)
+        newproblem,best_problem= process_problem2(newproblem, best_problem)
+        if len(best_problem.extrabins) <= 1:
+            break
+        delta = len(newproblem.extrabins) - len(currentproblem.extrabins)
+        if delta > 0:
+            best_problem = copy.deepcopy(currentproblem)
+        else:
+            if random.random() < math.exp(delta / temperature):
+                newproblem = copy.deepcopy(currentproblem)
+        temperature *= cooling_rate
+
+    return problem,best_problem
 def main():
     totaltime = 0
     filename = sys.argv[2]
@@ -625,17 +633,18 @@ def main():
             best_problem = bestfitExtra(best_problem)
             problemslnlist.append(best_problem)
             continue
-        problem, best_problem = process_problem2(problem, best_problem)
+        problem, best_problem = simulated_annealing(problem, best_problem)
+        #problem, best_problem = process_problem2(problem, best_problem)
         if len(best_problem.extrabins) <= 1:
             best_problem = bestfitExtra(best_problem)
             problemslnlist.append(best_problem)
             continue
 
-        problem, best_problem = process_problem3(problem, best_problem)
+        """ problem, best_problem = process_problem3(problem, best_problem)
         if len(best_problem.extrabins) <= 1:
             best_problem = bestfitExtra(best_problem)
             problemslnlist.append(best_problem)
-            continue
+            continue """
         best_problem = bestfitExtra(best_problem)
         endT = time.time()
         print("Running time ",endT - startT)

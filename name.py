@@ -370,7 +370,28 @@ def changeBins(morecontainer,lesscontainer):
         if c_sum >= bin.v:
             return c_sum,clist,bin
     return None,None,None
-
+def changeBinswithType(morecontainer,lesscontainer,type):
+    """
+    change one bin from more container to another container make the space more
+    """
+    clist = []
+    c_sum = 0
+    for bin in morecontainer.inputbin:
+        if bin.type == type :
+            c_space = morecontainer.left_v + bin.v
+            if c_space <= 20000 and len(morecontainer.inputbin) <= 25:
+                bins = lesscontainer.inputbin
+                clist, c_sum= dpAns(c_space,bins)
+            else:
+                cap = morecontainer.cap
+                c_list = []
+                c_sum = c_space
+                bins = lesscontainer.inputbin
+                dfs(cap,0,bins,c_sum,c_list)
+                c_sum = c_space - c_sum
+            if c_sum >= bin.v:
+                return c_sum,clist,bin
+    return None,None,None
 def split(prob:Prob):
     """
     random choose one container and split it's bins to 2 container
@@ -439,28 +460,7 @@ def randomShake(prob:Prob):
 
     return prob
 
-def changeBinswithType(morecontainer,lesscontainer,type):
-    """
-    change one bin from more container to another container make the space more
-    """
-    clist = []
-    c_sum = 0
-    for bin in morecontainer.inputbin:
-        if bin.type == type :
-            c_space = morecontainer.left_v + bin.v
-            if c_space <= 20000 and len(morecontainer.inputbin) <= 25:
-                bins = lesscontainer.inputbin
-                clist, c_sum= dpAns(c_space,bins)
-            else:
-                cap = morecontainer.cap
-                c_list = []
-                c_sum = c_space
-                bins = lesscontainer.inputbin
-                dfs(cap,0,bins,c_sum,c_list)
-                c_sum = c_space - c_sum
-            if c_sum >= bin.v:
-                return c_sum,clist,bin
-    return None,None,None
+
 
 def chooseTwoGroup(prob:Prob,type1,type2):
     """
@@ -621,7 +621,8 @@ def main():
             prob = bffExtra(prob)
             prob = bestfitExtra(prob)
             best_prob = checkResult(prob,best_prob)
-            if len(best_prob.extracontainers) <= 1:
+            best_prob = bestfitExtra(best_prob)
+            if len(best_prob.extracontainers) == 0:
                 flag = True
                 break
         if flag == True:
@@ -636,7 +637,8 @@ def main():
             prob = chooseTwoGroup(prob,"VLarge","Large")
             prob = checkResult(bffExtra(prob),prob)
             best_prob = checkResult(prob,best_prob)
-            if len(best_prob.extracontainers) <= 1:
+            best_prob = bestfitExtra(best_prob)
+            if len(best_prob.extracontainers) == 0:
                 flag = True
                 break
         if flag == True:
@@ -644,7 +646,7 @@ def main():
             probslnlist.append(best_prob)
             continue
 
-        for i in range(20):
+        """ for i in range(20):
             if i%3 == 0:
                 prob  = split(prob)
             for t in range(300):
@@ -654,13 +656,14 @@ def main():
             prob = chooseTwoGroup(prob,"VLarge","Large")
             prob = checkResult(bffExtra(prob),prob)
             best_prob = checkResult(prob,best_prob)
-            if len(best_prob.extracontainers) <= 1:
+            best_prob = bestfitExtra(best_prob)
+            if len(best_prob.extracontainers) == 0:
                 flag = True
                 break
         if flag == True:
             best_prob = bestfitExtra(best_prob)
             probslnlist.append(best_prob)
-            continue
+            continue """
         best_prob = bestfitExtra(best_prob)
         endT = time.time()
         print("Running time ",endT - startT)
