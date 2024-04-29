@@ -22,8 +22,7 @@ class Item:
             self.type = "Large"
         elif type > 0.25:
             self.type = "Mid"
-        elif type <= 0.1:
-            self.type = "Tiny"
+            
         else:
             self.type = "Small"
     def show(self):
@@ -46,7 +45,6 @@ class Problem:
         self.Largeitems = []
         self.Miditems = []
         self.Smallitems = []
-        self.Tinyitems = []
         self.bins = []
         self.extrabins = []
         self.allbins = []
@@ -59,8 +57,6 @@ class Problem:
             self.Miditems.append(item)
         elif item.type == "Small":
             self.Smallitems.append(item)
-        elif item.type == "Tiny":
-            self.Tinyitems.append(item)
     def throwEmpty(self):
         toRemove = []
         for bin in self.extrabins:
@@ -114,9 +110,8 @@ class Bin:
         VLargeitemlist=[]
         Miditemlist = []
         Smallitemlist = []
-        Tinyitemlist = []
         self.dict = {"VLarge":VLargeitemlist,"Large":Largeitemlist,"Mid":Miditemlist,
-            "Small":Smallitemlist,"Tiny":Tinyitemlist}
+            "Small":Smallitemlist}
     def additem(self,item:Item):
         """
         item: the item to add 
@@ -607,11 +602,7 @@ def neighbourhood(problem:Problem):
     """
     get the neighbourhood of the problem
     """
-    problem = shaking(problem)
-    problem = chooseTwoGroup(problem,"VLarge","Large")
-    problem = dealExtra(problem)
-    problem = bffExtra(problem)
-    problem = bestfitExtra(problem)
+    
 
     return problem
 def simulated_annealing(problem, initial_temperature=100, cooling_rate=0.95, max_iterations=1000):
@@ -641,54 +632,67 @@ def simulated_annealing(problem, initial_temperature=100, cooling_rate=0.95, max
     if len(new_problem.extrabins) <=1:
             best_problem = copy.deepcopy(new_problem)
             break """
+def process_problem(problem, best_problem):
+    for i in range(29):
+        if i != 0:
+            problem = shaking(problem)
+        problem = chooseTwoGroup(problem,"VLarge","Large")
+        problem = dealExtra(problem)
+        problem = bffExtra(problem)
+        problem = bestfitExtra(problem)
+        best_problem = checkResult(problem,best_problem)
+        if len(best_problem.extrabins) <= 1:
+            break
+    return problem, best_problem
+def process_problem2(problem, best_problem):
+    for i in range(20):
+        for t in range(300):
+            problem = randomShake(problem)
+        problem = chooseTwoGroup(problem,"Large","Mid")
+        problem = dealExtra(problem)
+        problem = chooseTwoGroup(problem,"VLarge","Large")
+        problem = checkResult(bffExtra(problem),problem)
+        best_problem = checkResult(problem,best_problem)
+        if len(best_problem.extrabins) <= 1:
+            break
+    return problem, best_problem
+def process_problem3(problem, best_problem):
+    for i in range(20):
+        if i%3 == 0:
+            problem  = split(problem)
+        for t in range(300):
+            problem = randomShake(problem)
+        problem = chooseTwoGroup(problem,"Large","Mid")
+        problem = dealExtra(problem)
+        problem = chooseTwoGroup(problem,"VLarge","Large")
+        problem = checkResult(bffExtra(problem),problem)
+        best_problem = checkResult(problem,best_problem)
+        if len(best_problem.extrabins) <= 1:
+            break
+    return problem, best_problem
 def main():
     totaltime = 0
     filename = sys.argv[2]
     problemlist = readfile(filename)
     problemslnlist = []
     for problem in problemlist:
-        flag = False
         startT = time.time()
         bestFit(problem)
         best_problem = copy.copy(problem)
         problem.resetbins()
-        problem = simulated_annealing(problem)
-        if len(problem.extrabins) <= 1:
-            flag = True
-        if flag == True:
+        problem, best_problem = process_problem(problem, best_problem)
+        if len(best_problem.extrabins) <= 1:
             best_problem = bestfitExtra(best_problem)
             problemslnlist.append(best_problem)
             continue
-        for i in range(30):
-            for t in range(200):
-                problem = randomShake(problem)
-            problem = chooseTwoGroup(problem,"Large","Mid")
-            problem = dealExtra(problem)
-            problem = chooseTwoGroup(problem,"VLarge","Large")
-            problem = checkResult(bffExtra(problem),problem)
-            best_problem = checkResult(problem,best_problem)
-            if len(best_problem.extrabins) <= 1:
-                flag = True
-                break
-        if flag == True:
+        problem, best_problem = process_problem2(problem, best_problem)
+        if len(best_problem.extrabins) <= 1:
             best_problem = bestfitExtra(best_problem)
             problemslnlist.append(best_problem)
             continue
 
-        for i in range(20):
-            if i%3 == 0:
-                problem  = split(problem)
-            for t in range(300):
-                problem = randomShake(problem)
-            problem = chooseTwoGroup(problem,"Large","Mid")
-            problem = dealExtra(problem)
-            problem = chooseTwoGroup(problem,"VLarge","Large")
-            problem = checkResult(bffExtra(problem),problem)
-            best_problem = checkResult(problem,best_problem)
-            if len(best_problem.extrabins) <= 1:
-                flag = True
-                break
-        if flag == True:
+        problem, best_problem = process_problem3(problem, best_problem)
+        if len(best_problem.extrabins) <= 1:
             best_problem = bestfitExtra(best_problem)
             problemslnlist.append(best_problem)
             continue
@@ -697,8 +701,6 @@ def main():
         print("Running time ",endT - startT)
         totaltime += (endT - startT)
         problemslnlist.append(problem)
-        
-
     output(problemslnlist,sys.argv[4])
     print(totaltime)
         
