@@ -196,32 +196,6 @@ def bestFit(problem:Problem):
     for bin in addbinList:
         problem.extrabins.append(bin)
     print("Add num",len(addbinList))
-def checker(problem:Problem):
-    """
-    check if the problem is right 
-    """
-    items = copy.copy(problem.items)
-    for bin in problem.bins:
-        cap = problem.cap
-        for item in bin.inputitem:
-            items.remove(item)
-            cap -= item.weight
-            if cap == problem.cap:
-                print("WARNING :empty")
-            if cap < 0:
-                print("ERROR: overload")
-    for bin in problem.extrabins:
-        cap = problem.cap
-        for item in bin.inputitem:
-            # item.show()
-            items.remove(item)
-            cap -= item.weight
-            if cap < 0:
-                print("extra ERROR: overload")
-    # print("len items ",len(items))
-    for item in items:
-        print("Miss item", item.show())
-
 def output(problemlist:list,filename):
     """
     get the problem and print it to the file
@@ -254,33 +228,33 @@ def getUnfillbins(problem:Problem):
     get the bins not full 
     :items: the items for the bins
     :bins: the bins that not full
-    :problem_c: problem after remove the bins and items
+    :copy_problem: problem after remove the bins and items
     """
     items = []
     bins = []
-    problem_c = copy.copy(problem)
+    copy_problem = copy.copy(problem)
     for bin in problem.bins:
         if bin.cur_weight!= problem.cap and bin.left_cap != 0:
             bins.append(bin)
             for item in bin.inputitem:
                 items.append(item)
     for bin in bins:
-        problem_c.bins.remove(bin)
+        copy_problem.bins.remove(bin)
     for bin in problem.extrabins:
         if bin.cur_weight!= problem.cap and bin.left_cap != 0:
             bins.append(bin)
             for item in bin.inputitem:
                 items.append(item)
-        problem_c.extrabins = []
-    return items,bins,problem_c
+        copy_problem.extrabins = []
+    return items,copy_problem
 
 def shaking(problem:Problem):
     """
     shake the problem that the non filled bins use bestfit to choose
     """
-    unfillitems,unfillbins,problem_c = getUnfillbins(problem)
+    unfillitems,copy_problem = getUnfillbins(problem)
     unfillitems.sort(key = lambda x:x.weight,reverse= True)
-    bin = Bin(problem_c.cap)
+    bin = Bin(copy_problem.cap)
     bid = 0
     addbinList = [bin]
     while(len(unfillitems) != 0):
@@ -297,9 +271,9 @@ def shaking(problem:Problem):
             bin = Bin(problem.cap)
             addbinList.append(bin)
     for bin in addbinList:
-        problem_c.bins.append(bin)
-    problem_c.resetbins()
-    problem = problem_c
+        copy_problem.bins.append(bin)
+    copy_problem.resetbins()
+    problem = copy_problem
     return problem   
 
 def dpAns(space,items:list):
@@ -405,11 +379,11 @@ def randomShake(problem:Problem):
     choose 2 bin to shake randomly
     """
     problem.resetbins()
-    problem_copy = copy.copy(problem)
+    copy_problemopy = copy.copy(problem)
     all_bins = []
-    for bin in problem_copy.bins:
+    for bin in copy_problemopy.bins:
         all_bins.append(bin)
-    for bin in problem_copy.extrabins:
+    for bin in copy_problemopy.extrabins:
         all_bins.append(bin)
     bin_num = len(all_bins)
     randbin1 = random.randint(0,bin_num - 1)
@@ -431,7 +405,7 @@ def randomShake(problem:Problem):
             bin2.additem(sln[1])
 
      
-    problem = copy.copy(problem_copy)
+    problem = copy.copy(copy_problemopy)
     problem.resetbins()
 
     return problem
@@ -463,10 +437,10 @@ def chooseTwoGroup(problem:Problem,type1,type2):
     """
     for the item type choose 2 group of bins
     """
-    problem_copy = copy.copy(problem)
+    copy_problemopy = copy.copy(problem)
     group1 = []
     group2 = []       
-    for bin in problem_copy.bins:
+    for bin in copy_problemopy.bins:
         if bin.left_cap == 0:
             continue
         flagL = False
@@ -478,7 +452,7 @@ def chooseTwoGroup(problem:Problem,type1,type2):
         else:
             group2.append(bin)
         group1,group2 = groupChange(group1,group2,type2)
-    problem = problem_copy
+    problem = copy_problemopy
     return problem
 
 def groupChange(group1:list,group2:list,type):
@@ -580,9 +554,6 @@ def bffExtra(problem:Problem):
     return problem
 
 def checkResult(problem1:Problem,problem2:Problem):
-    """
-    Compare the problem result return the better one
-    """
     if len(problem1.extrabins) < len(problem2.extrabins):
         return problem1
     elif len(problem1.extrabins) > len(problem2.extrabins):
@@ -591,68 +562,45 @@ def checkResult(problem1:Problem,problem2:Problem):
         sum1 = 0
         sum2 = 0
         for bin in problem1.extrabins:
-            sum1 += bin.cur_weight
+            sum1 += bin.left_cap
         for bin in problem2.extrabins:
-            sum2 += bin.cur_weight
-        if sum1 < sum2:
+            sum2 += bin.left_cap
+        if sum1 > sum2:
             return problem1
         else:
             return problem2
-def neighbourhood(problem:Problem):
-    """
-    get the neighbourhood of the problem
-    """
-    
-
-    return problem
-def simulated_annealing(problem, initial_temperature=100, cooling_rate=0.95, max_iterations=1000):
-    current_problem = copy.deepcopy(problem)
-    best_problem = copy.deepcopy(current_problem)
-    temperature = initial_temperature
-    
-    while temperature > 1 and max_iterations > 0:
-        print("Temperature: ", temperature)
-        new_problem = neighbourhood(current_problem)
-        if len(new_problem.extrabins) <=1:
-            best_problem = copy.deepcopy(new_problem)
-            break
-        delta = len(new_problem.extrabins) - len(current_problem.extrabins)
-        if delta < 0:
-            current_problem = copy.deepcopy(new_problem)
-            if len(current_problem.extrabins) < len(best_problem.extrabins):
-                best_problem = copy.deepcopy(current_problem)
-        else:
-            if random.random() < math.exp(-delta / temperature):
-                current_problem = copy.deepcopy(new_problem)
-        temperature *= cooling_rate
-        max_iterations -= 1
-    return best_problem
-""" def variable_neighbourhood_search(problem):
-    new_problem = neighbourhood(problem)
-    if len(new_problem.extrabins) <=1:
-            best_problem = copy.deepcopy(new_problem)
-            break """
-def process_problem(problem, best_problem):
-    for i in range(29):
-        if i != 0:
-            problem = shaking(problem)
-        problem = chooseTwoGroup(problem,"VLarge","Large")
-        problem = dealExtra(problem)
-        problem = bffExtra(problem)
-        problem = bestfitExtra(problem)
-        best_problem = checkResult(problem,best_problem)
+def variable_neibourhood_search(problem, best_problem):
+    shaking_time = 30
+    problem = shaking(problem)
+    for i in range(shaking_time):
+        problem,best_problem= neighbourhood(problem, best_problem)
         if len(best_problem.extrabins) <= 1:
             break
+        if i >0:
+            problem = shaking(problem)
     return problem, best_problem
+def neighbourhood(problem, best_problem):
+    problem = chooseTwoGroup(problem,"VLarge","Large")
+    problem = dealExtra(problem)
+    problem = bffExtra(problem)
+    problem = bestfitExtra(problem)
+    best_problem = checkResult(problem,best_problem)
+    return problem, best_problem
+def neighbourhood2(problem, best_problem):
+    problem = chooseTwoGroup(problem,"Large","Mid")
+    problem = dealExtra(problem)
+    problem = chooseTwoGroup(problem,"VLarge","Large")
+    problem = bffExtra(problem)
+    best_problem = checkResult(problem,best_problem)
+    return problem, best_problem
+def mutiple_randomshake(problem):
+    for t in range(300):
+        problem = randomShake(problem)
+    return problem
 def process_problem2(problem, best_problem):
     for i in range(20):
-        for t in range(300):
-            problem = randomShake(problem)
-        problem = chooseTwoGroup(problem,"Large","Mid")
-        problem = dealExtra(problem)
-        problem = chooseTwoGroup(problem,"VLarge","Large")
-        problem = checkResult(bffExtra(problem),problem)
-        best_problem = checkResult(problem,best_problem)
+        problem = mutiple_randomshake(problem)
+        problem,best_problem = neighbourhood2(problem, best_problem)
         if len(best_problem.extrabins) <= 1:
             break
     return problem, best_problem
@@ -660,13 +608,8 @@ def process_problem3(problem, best_problem):
     for i in range(20):
         if i%3 == 0:
             problem  = split(problem)
-        for t in range(300):
-            problem = randomShake(problem)
-        problem = chooseTwoGroup(problem,"Large","Mid")
-        problem = dealExtra(problem)
-        problem = chooseTwoGroup(problem,"VLarge","Large")
-        problem = checkResult(bffExtra(problem),problem)
-        best_problem = checkResult(problem,best_problem)
+        mutiple_randomshake(problem)
+        problem,best_problem = neighbourhood2(problem, best_problem)
         if len(best_problem.extrabins) <= 1:
             break
     return problem, best_problem
@@ -680,7 +623,7 @@ def main():
         bestFit(problem)
         best_problem = copy.copy(problem)
         problem.resetbins()
-        problem, best_problem = process_problem(problem, best_problem)
+        problem, best_problem = variable_neibourhood_search(problem, best_problem)
         if len(best_problem.extrabins) <= 1:
             best_problem = bestfitExtra(best_problem)
             problemslnlist.append(best_problem)

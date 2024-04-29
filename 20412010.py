@@ -27,9 +27,9 @@ class Bin:
     def isempty(self):
         return len(self.items) == 0
 class Solution:
-    def __init__(self, problem):
+    def __init__(self, problem,bins):
         self.problem= problem
-        self.bins = []
+        self.bins = bins
         self.bins_number = 0
 def emptybin_check(solution:Solution):
     for bin in solution.bins:
@@ -566,8 +566,8 @@ def main():
     for problem in problems:
         
         print(problem.id)
-        #best_solution = first_fit(problem)
-        best_solution = Variable_Neighbourhood_Search(problem)
+        best_solution = greedy_search(problem)
+        #best_solution = Variable_Neighbourhood_Search(problem)
         #best_solution= genetic_algorithm(best_solution,population_size, mutation_rate, num_generations)
         #best_solution = simulated_annealing(best_solution)
         print(best_solution.bins_number)
