@@ -128,8 +128,13 @@ class Bin:
         self.cur_weight-= item.weight
         self.left_cap += item.weight
         self.dict[item.type].remove(item)
-    def show(self):
-        print("Show bin ","cur v = ", self.cur_weight,"left v = ", self.left_cap)
+    def canfit(self,item:Item):
+        """
+        item: the item to check
+        """
+        if self.left_cap >= item.weight:
+            return True
+        return False
 def readfile(filename):
     """ 
     read the file and build the problem class
@@ -154,7 +159,6 @@ def readfile(filename):
         
         for j in range (int(temp_t[1])):
             itemc = f.readline()
-            # print("itemc = ",itemc)
             itemtype = int(itemc)/problem.cap
             item = Item(j,int(itemc),itemtype)
             problem.items.append(item)
@@ -172,7 +176,7 @@ def bestFit(problem:Problem):
     for bin in problem.bins:
         toReomveitems = []
         for item in tempitems:
-            if bin.left_cap >= item.weight:
+            if bin.canfit(item):
                 bin.additem(item)
                 toReomveitems.append(item)
         for item in toReomveitems:
@@ -184,7 +188,7 @@ def bestFit(problem:Problem):
         toReomveitems = []
         bin = addbinList[bid]
         for item in tempitems:
-            if bin.left_cap >= item.weight:
+            if bin.canfit(item):
                 bin.additem(item)
                 toReomveitems.append(item)
         for item in toReomveitems:
@@ -205,7 +209,6 @@ def output(problemlist:list,filename):
     for problem in problemlist:
         problem.resetbins()
         problem.throwEmpty()
-        # checker(problem)
         print(problem.title,file = outfile)
         print(problem.title)
         print(problem.extrabins)
@@ -217,11 +220,9 @@ def output(problemlist:list,filename):
             print(file = outfile)
         for bin in problem.extrabins:
             if bin.left_cap != problem.cap and bin.cur_weight!= 0:
-                # allbins.append(bin)
                 for item in bin.inputitem:
                     print(item.id, end=" ",file = outfile)
                 print(file = outfile)
-            bin.show()
 
 def getUnfillbins(problem:Problem):
     """
@@ -261,7 +262,7 @@ def shaking(problem:Problem):
         toReomveitems = []
         bin = addbinList[bid]
         for item in unfillitems:
-            if bin.left_cap >= item.weight:
+            if bin.canfit(item):
                 bin.additem(item)
                 toReomveitems.append(item)
         for item in toReomveitems:
@@ -303,7 +304,7 @@ def dpAns(space,items:list):
             j -= items[i - 1].weight
     return changeitems,dp[space]
 
-def dfs( cap, num,items,Min,c_list):
+def local_search( cap, num,items,Min,c_list):
     """
     deep first search to get a local problem for 
     single bin item packing
@@ -311,12 +312,11 @@ def dfs( cap, num,items,Min,c_list):
     Min = min(Min,cap)
     if (num == len(items)) :
         return
-    if (cap-items[num].weight < 0) :
-        dfs(cap,num+1,items,Min,c_list)
-    else:
+    if (cap-items[num].weight >= 0) :
         c_list.append(items[num])
-        dfs(cap-items[num].weight ,num+1,items,Min,c_list)
-
+        local_search(cap-items[num].weight ,num+1,items,Min,c_list)
+    else:
+        local_search(cap,num+1,items,Min,c_list)
 def changeitems(morebin,lessbin):
     """
     change one item from more bin to another bin make the space more
@@ -336,7 +336,7 @@ def changeitems(morebin,lessbin):
             c_list = []
             c_sum = c_space
             items = lessbin.inputitem
-            dfs(cap,0,items,c_sum,c_list)
+            local_search(cap,0,items,c_sum,c_list)
             c_sum = c_space - c_sum
         if c_sum >= item.weight:
             return c_sum,clist,item
@@ -372,7 +372,7 @@ def swap(morebin,lessbin):
                 break 
             if mitem.weight < litem.weight and mitem.weight+morebin1.left_cap >=litem.weight:
                 return litem,mitem
-    return None
+    return None,None
 
 def randomShake(problem:Problem):
     """
@@ -388,29 +388,26 @@ def randomShake(problem:Problem):
     bin_num = len(all_bins)
     randbin1 = random.randint(0,bin_num - 1)
     randbin2 = random.randint(0,bin_num - 1)
-    if randbin1 == randbin2:
-        randbin2 +=1 
-        randbin2 %= bin_num
+    while(randbin1 == randbin2):
+        randbin2 = random.randint(0,bin_num - 1)
     bin1 = all_bins[randbin1]
     bin2 = all_bins[randbin2]
     if bin1.left_cap > bin2.left_cap:
         bin_T = bin1 
         bin1 =  bin2 
         bin2 = bin_T
-    sln = swap(bin1,bin2) # 2 have more left space
-    if sln != None:
-            bin1.removeitem(sln[1])
-            bin2.removeitem(sln[0])
-            bin1.additem(sln[0])
-            bin2.additem(sln[1])
-
-     
+    item1,item2 = swap(bin1,bin2) 
+    if item1 != None:
+            bin1.removeitem(item2)
+            bin2.removeitem(item1)
+            bin1.additem(item1)
+            bin2.additem(item2) 
     problem = copy.copy(copy_problemopy)
     problem.resetbins()
 
     return problem
 
-def changeitemswithType(morebin,lessbin,type):
+def Getmorecapleft(morebin,lessbin,type):
     """
     change one item from more bin to another bin make the space more
     """
@@ -427,19 +424,19 @@ def changeitemswithType(morebin,lessbin,type):
                 c_list = []
                 c_sum = c_space
                 items = lessbin.inputitem
-                dfs(cap,0,items,c_sum,c_list)
+                local_search(cap,0,items,c_sum,c_list)
                 c_sum = c_space - c_sum
             if c_sum >= item.weight:
                 return c_sum,clist,item
     return None,None,None
 
-def chooseTwoGroup(problem:Problem,type1,type2):
+def chooseTwoType(problem:Problem,type1,type2):
     """
-    for the item type choose 2 group of bins
+    for the item type choose 2 Type of bins
     """
     copy_problemopy = copy.copy(problem)
-    group1 = []
-    group2 = []       
+    Type1 = []
+    Type2 = []       
     for bin in copy_problemopy.bins:
         if bin.left_cap == 0:
             continue
@@ -448,24 +445,24 @@ def chooseTwoGroup(problem:Problem,type1,type2):
             if item.type == type1 :
                 flagL = True
         if flagL == False:
-            group1.append(bin)
+            Type1.append(bin)
         else:
-            group2.append(bin)
-        group1,group2 = groupChange(group1,group2,type2)
+            Type2.append(bin)
+        Type1,Type2 = TypeChange(Type1,Type2,type2)
     problem = copy_problemopy
     return problem
 
-def groupChange(group1:list,group2:list,type):
+def TypeChange(Type1:list,Type2:list,type):
     """
-    Change the items in bins of different groups
+    Change the items in bins of different Types
     
     """
-    group1_c = copy.copy(group1)
-    group2_c = copy.copy(group2)
-    for morebin in group1_c:
+    Type1_c = copy.copy(Type1)
+    Type2_c = copy.copy(Type2)
+    for morebin in Type1_c:
         toRemove = []
-        for lessbin in group2_c:
-            c_sum,clist,item = changeitemswithType(morebin,lessbin,type)
+        for lessbin in Type2_c:
+            c_sum,clist,item = Getmorecapleft(morebin,lessbin,type)
             if c_sum == None:
                 continue
             else:
@@ -476,8 +473,8 @@ def groupChange(group1:list,group2:list,type):
                     lessbin.removeitem(item)
                 break
         for bin in toRemove:
-            group2_c.remove(bin)
-    return group1_c,group2_c
+            Type2_c.remove(bin)
+    return Type1_c,Type2_c
 
 def bestfitExtra(problem:Problem):
     extras = problem.extrabins
@@ -492,7 +489,7 @@ def bestfitExtra(problem:Problem):
         toReomveitems = []
         bin = addbinList[bid]
         for item in tempitems:
-            if bin.left_cap >= item.weight:
+            if bin.canfit(item):
                 bin.additem(item)
                 toReomveitems.append(item)
         for item in toReomveitems:
@@ -540,7 +537,7 @@ def bffExtra(problem:Problem):
     toRemove = []
     for item in extraitems:
         for bin in problem.bins:
-            if bin.left_cap >= item.weight:
+            if bin.canfit(item):
                 bin.additem(item)
                 toRemove.append(bin)
                 break
@@ -580,16 +577,16 @@ def variable_neibourhood_search(problem, best_problem):
             problem = shaking(problem)
     return problem, best_problem
 def neighbourhood(problem, best_problem):
-    problem = chooseTwoGroup(problem,"VLarge","Large")
+    problem = chooseTwoType(problem,"VLarge","Large")
     problem = dealExtra(problem)
     problem = bffExtra(problem)
     problem = bestfitExtra(problem)
     best_problem = checkResult(problem,best_problem)
     return problem, best_problem
 def neighbourhood2(problem, best_problem):
-    problem = chooseTwoGroup(problem,"Large","Mid")
+    problem = chooseTwoType(problem,"Large","Mid")
     problem = dealExtra(problem)
-    problem = chooseTwoGroup(problem,"VLarge","Large")
+    problem = chooseTwoType(problem,"VLarge","Large")
     problem = bffExtra(problem)
     best_problem = checkResult(problem,best_problem)
     return problem, best_problem
@@ -646,7 +643,5 @@ def main():
         problemslnlist.append(problem)
     output(problemslnlist,sys.argv[4])
     print(totaltime)
-        
-
- 
-main()
+if __name__ == "__main__":
+    main()
