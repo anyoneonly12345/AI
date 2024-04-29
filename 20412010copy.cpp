@@ -376,11 +376,10 @@ public:
 
     // This fuction is used for defining the variable neighbourhood spaces
     void Neighbourhood(int nb_space, Solution &solution){
-        switch(nb_space)
-        {
-            case 1:{
+
+            if(nb_space == 1){
                 // 200 neighbourhood1 solutions space with LBLI, RandomBin_Reshuffule and shift heuristics
-                int neighbour_count = 100;
+                int neighbour_count = 180;
                 Solution local_best_solution = solution;
                 for(int i =0; i<neighbour_count; i++){
                     Getbigcapleftbins(local_best_solution);
@@ -391,11 +390,10 @@ public:
                         solution = local_best_solution;
                     }
                 }
-                break;
             }
-            case 2:{
+            if(nb_space == 2){
                 // 200 neighbourhood2 solutions space with Split, LBLI and shift heuristics
-                int neighbour_count = 100;
+                int neighbour_count = 180;
                 Solution local_best_solution = solution;
                 for(int i =0; i<neighbour_count; i++){
                     Getsmallitems(local_best_solution);
@@ -406,11 +404,10 @@ public:
                         solution = local_best_solution;
                     }
                 }
-                break;
             }
-            case 3:{
+            if(nb_space == 3){
                 // 200 neighbourhood3 solutions space with hyprid heuristics
-                int neighbour_count = 100;
+                int neighbour_count = 180;
                 Solution local_best_solution = solution;
                 for(int i =0; i<neighbour_count; i++){
                     Getbigcapleftbins(local_best_solution);
@@ -437,13 +434,10 @@ public:
                         solution = local_best_solution;
                     }
                 }
-                break;
             }
-            default:
-                cout << "Bad nb_space!" << endl;
         }
 
-    }
+
 
     // The function is used for shaking movement
     // This shaking movement uses change largestBin_largestItem heuristic method to shuffle two bins,
@@ -586,6 +580,10 @@ public:
             return;
         }
         time_fin= clock();
+        if((double)(time_fin - time_start) / CLOCKS_PER_SEC > MAX_TIME){
+            good_solutions.push_back(best_solution);
+            return;
+        }
         best_solution = Simmulated_Annealing(current_solution, (double)(time_fin - time_start) / CLOCKS_PER_SEC);
         if(best_solution.bins_number> current_solution.bins_number){
             best_solution = current_solution;
@@ -606,10 +604,11 @@ public:
         double end_T = 0.1;
         double cooling_rate = 0.3;
         time_start = clock();
+        double new_time_spent =0;
         best_solution = current_solution;
-        while(time_spent < MAX_TIME&& T > end_T){
+        while(new_time_spent < MAX_TIME&& T > end_T){
             // Simmulated Annealing
-            
+            cout << "T: " << T << endl;
             int nb_space = 1;
             int maxSpace = 3;
             Solution n_best_solution;
@@ -638,11 +637,11 @@ public:
             }
             if(best_solution.bins_number== best_solution.problem.best_bins_number){
                 time_fin = clock();
-                time_spent += (double)(time_fin - time_start) / CLOCKS_PER_SEC;
+                new_time_spent = (double)(time_fin - time_start) / CLOCKS_PER_SEC+ time_spent;
                 break;
             }
             time_fin = clock();
-            time_spent += (double)(time_fin - time_start) / CLOCKS_PER_SEC;            
+            new_time_spent = (double)(time_fin - time_start) / CLOCKS_PER_SEC+ time_spent;            
             T = T * (1 - cooling_rate);
         }
         return best_solution;
@@ -651,12 +650,13 @@ public:
     Solution Variable_Neighbourhood_Search(Solution &solution, double time_spent){
         Solution current_solution = solution;
         Solution best_solution;
-
+        int shaking_count = 50;
         clock_t time_start, time_fin;
         time_start = clock();
+        double new_time_spent = 0;
         best_solution = current_solution;
 
-        while(time_spent < MAX_TIME)
+        while(new_time_spent < MAX_TIME&& shaking_count > 0)
         {
             //variable neighbourhood search
             int nb_space = 1;
@@ -688,15 +688,15 @@ public:
             //If the solution get the best bins_numbersolution of the problem, finish this problem early
             if(best_solution.bins_number== best_solution.problem.best_bins_number){
                 time_fin = clock();
-                time_spent += (double)(time_fin - time_start) / CLOCKS_PER_SEC;
+                new_time_spent = (double)(time_fin - time_start) / CLOCKS_PER_SEC+ time_spent;
                 break;
             }
 
             Shaking(current_solution);
-
+            shaking_count --;
 
             time_fin = clock();
-            time_spent += (double)(time_fin - time_start) / CLOCKS_PER_SEC;
+            new_time_spent = (double)(time_fin - time_start) / CLOCKS_PER_SEC+ time_spent;
         }
         return best_solution;
     }
