@@ -23,31 +23,26 @@ class Item:
             self.type = "Large"
         elif type > 0.25:
             self.type = "Mid"
-        elif type <= 0.1:
-            self.type = "Tiny"
         else:
             self.type = "Small"
-    def show(self):
-        print("BIN: ",self.id,self.weight,self.type)
 class Problem:
     
-    def __init__(self,title,cap,itemNum,bestNum):
+    def __init__(self,title,cap,itemNum,bestbin_number):
         """
         title: the title of problem
         cap: the cap of the problem
         itemNum: the total item number
-        bestNUm: the best solution number
+        bestbin_number: the best solution number
         """
         self.title = title
         self.cap = int(cap )
         self.itemNum = int(itemNum )
-        self.bestNum = int(bestNum)
+        self.bestbin_number = int(bestbin_number)
         self.items = []
         self.VLargeitems = []
         self.Largeitems = []
         self.Miditems = []
-        self.Smallitems = []
-        self.Tinyitems = []
+        self.Smalless_items = []
         self.bins = []
         self.extrabins = []
         self.allbins = []
@@ -59,13 +54,12 @@ class Problem:
         elif item.type == "Mid":
             self.Miditems.append(item)
         elif item.type == "Small":
-            self.Smallitems.append(item)
-        elif item.type == "Tiny":
-            self.Tinyitems.append(item)
+            self.Smalless_items.append(item)
+
     def throwEmpty(self):
         toRemove = []
         for bin in self.extrabins:
-            if bin.left_cap == self.cap and bin.cur_weight == 0:
+            if bin.isEmpty():
                 toRemove.append(bin)
         for bin in toRemove:
             self.extrabins.remove(bin)
@@ -73,34 +67,11 @@ class Problem:
         """
         reset the bins and the extra bins
         """
-        allBins = []
-        for bin in self.bins:
-            if bin.left_cap != self.cap and bin.cur_weight != 0:
-                allBins.append(bin)
-        for bin in self.extrabins:
-            if bin.left_cap != self.cap and bin.cur_weight != 0:
-                allBins.append(bin)
-        allC = []
-        allC = copy.copy(allBins)
-        allC.sort(key = lambda x:x.left_cap, reverse= False)
-        self.bins = []
-        self.extrabins = []
-        toRemove = []
-        for bin in allC:
-            if bin.left_cap == self.cap and bin.cur_weight == 0:
-                toRemove.append(bin)
-        for bin in toRemove:
-            allC.remove(bin)
-        
-        for i in range(len(allC) ):
-            if i < self.bestNum:
-                self.bins.append(allC[i])
-            else:
-                if bin.left_cap != self.cap and bin.cur_weight != 0:
-                    self.extrabins.append(allC[i])
-                    # print("Extra", bin.left_cap, bin.cur_weight)
+        all_bins = [bin for bin in self.bins + self.extrabins if not bin.isEmpty()]
+        all_bins.sort(key=lambda x: x.left_cap)
+        self.bins = [bin for i, bin in enumerate(all_bins) if i < self.bestbin_number and not bin.isEmpty()]
+        self.extrabins = [bin for i, bin in enumerate(all_bins) if i >= self.bestbin_number and not bin.isEmpty()]
         self.throwEmpty()
-        # print(self.extrabins)
         bestfitExtra(self)
 class Bin:
     def __init__(self,cap):
@@ -114,10 +85,9 @@ class Bin:
         LargeItemlist=[]
         VLargeItemlist=[]
         MidItemlist = []
-        SmallItemlist = []
-        TinyItemlist = []
+        Smalless_itemlist = []
         self.dict = {"VLarge":VLargeItemlist,"Large":LargeItemlist,"Mid":MidItemlist,
-            "Small":SmallItemlist,"Tiny":TinyItemlist}
+            "Small":Smalless_itemlist,}
     def addItem(self,item:Item):
         """
         item: the item to add 
@@ -134,329 +104,296 @@ class Bin:
         self.cur_weight -= item.weight
         self.left_cap += item.weight
         self.dict[item.type].remove(item)
-        
-    def show(self):
-        print("Show bin ","cur weight = ", self.cur_weight,"left weight = ", self.left_cap)
+    def isEmpty(self):
+        """
+        check if the bin is empty
+        """
+        if self.cur_weight == 0:
+            return True
+        else:
+            return False
+    def isFull(self):
+        """
+        check if the bin is full
+        """
+        if self.left_cap == 0:
+            return True
+        else:
+            return False
+    def canfit(self,item:Item):
+        """
+        check if the item can fit into the bin
+        """
+        if self.left_cap >= item.weight:
+            return True
+        else:
+            return False
 def readfile(filename):
-    """ 
-    read the file and build the problem class
     """
-    f = open(filename,"r")
-    problem_num = f.readline()
-    problemlist = []
-    for i in range(int(problem_num)):
-        title = f.readline()
-        title = title.strip('\n')
-        title = title.strip(" ")
-        info = f.readline()
-        temp_t = info.split(" ")
-        if temp_t[0] == "":
-            temp_t.pop(0)
-        for item in temp_t:
-            item = item.strip(" ")
-            item = int(item)
-        problem = Problem(title,temp_t[0],temp_t[1],temp_t[2])
-        for j in range(int(temp_t[2])):
-            problem.bins.append(Bin(problem.cap))
-        
-        for j in range (int(temp_t[1])):
-            itemc = f.readline()
-            # print("itemc = ",itemc)
-            itemtype = int(itemc)/problem.cap
-            item = Item(j,int(itemc),itemtype)
-            problem.items.append(item)
-            problem.classifyItems(item)
-        problemlist.append(problem)
-    return problemlist
+    read the file and return the problem list
+    """
+    with open(filename, "r") as file:
+        problem_count = int(file.readline())
+        problems = []
+        for _ in range(problem_count):
+            title = file.readline().strip('\n').strip(" ")
+            info = file.readline().split(" ")
+            cap, itemNum, bestbin_number = [int(item.strip(" ")) for item in info if item != ""]
+            problem = Problem(title, cap, itemNum, bestbin_number)
+            for _ in range(bestbin_number):
+             problem.bins.append(Bin(cap))
+            for _ in range(itemNum):
+                item_weight = int(file.readline())
+                item_type = item_weight / cap
+                item = Item(_, item_weight, item_type)
+                problem.items.append(item)
+                problem.classifyItems(item)
+            problems.append(problem)
+        return problems
 def bestFit(problem:Problem):
     """
-    bestfit method to solve the problem
+    best fit algorithm
     """
     problem.items.sort(key=lambda x:x.weight, reverse=True)
     tempitems = copy.copy(problem.items)
     for bin in problem.bins:
         toReomveItems = []
         for item in tempitems:
-            if bin.left_cap >= item.weight:
+            if bin.canfit(item):
                 bin.addItem(item)
                 toReomveItems.append(item)
         for item in toReomveItems:
             tempitems.remove(item)
     bin = Bin(problem.cap)
-    cid = 0
+    bins_id = 0
     addBinList = [bin]
+    """
+    best_bins_number is not enough, add result to the extra bins
+    """
     while(len(tempitems) != 0):
         toReomveItems = []
-        bin = addBinList[cid]
+        bin = addBinList[bins_id]
         for item in tempitems:
-            if bin.left_cap >= item.weight:
+            if bin.canfit(item):
                 bin.addItem(item)
                 toReomveItems.append(item)
         for item in toReomveItems:
             tempitems.remove(item)
         if len(tempitems) != 0:
-            cid += 1
+            bins_id += 1
             bin = Bin(problem.cap)
             addBinList.append(bin)
     for bin in addBinList:
         problem.extrabins.append(bin)
-    print("Add num",len(addBinList))
-def checker(problem:Problem):
-    """
-    check if the solution is right 
-    """
-    items = copy.copy(problem.items)
-    for bin in problem.bins:
-        cap = problem.cap
-        for item in bin.inputitem:
-            items.remove(item)
-            cap -= item.weight
-            if cap == problem.cap:
-                print("WARNING :empty")
-            if cap < 0:
-                print("ERROR: overload")
-    for bin in problem.extrabins:
-        cap = problem.cap
-        for item in bin.inputitem:
-            # item.show()
-            items.remove(item)
-            cap -= item.weight
-            if cap < 0:
-                print("extra ERROR: overload")
-    # print("len items ",len(items))
-    for item in items:
-        print("Miss item", item.show())
-
 def output(problemlist:list,filename):
     """
-    get the solution and print it to the file
+    output the result to the file
     """
-    outfile = open(filename,'w')
-    print(len(problemlist),file = outfile)
-    for problem in problemlist:
-        problem.resetbins()
-        problem.throwEmpty()
-        # checker(problem)
-        print(problem.title,file = outfile)
-        print(problem.title)
-        print(problem.extrabins)
-        num = len(problem.bins) + len(problem.extrabins)
-        print(" obj=  ",num, num- problem.bestNum,file = outfile)
-        for bin in problem.bins:
-            for item in bin.inputitem:
-                print(item.id, end=" ",file = outfile)
-            print(file = outfile)
-        for bin in problem.extrabins:
-            if bin.left_cap != problem.cap and bin.cur_weight != 0:
-                # allBins.append(bin)
-                for item in bin.inputitem:
-                    print(item.id, end=" ",file = outfile)
-                print(file = outfile)
-            bin.show()
-
+    with open(filename, 'w') as outfile:
+        print(len(problemlist), file=outfile)
+        for problem in problemlist:
+            problem.resetbins()
+            problem.throwEmpty()
+            print(problem.title, file=outfile)
+            print(problem.title)
+            print(problem.extrabins)
+            num = len(problem.bins) + len(problem.extrabins)
+            print(" obj=  ", num, num - problem.bestbin_number, file=outfile)
+            for bin in problem.bins + problem.extrabins:
+                if not bin.isEmpty():
+                    print(' '.join(str(item.id) for item in bin.inputitem), file=outfile)
 def getUnfillBins(problem:Problem):
     """
-    get the bins not full 
-    :items: the items for the bins
-    :bins: the bins that not full
-    :problem_c: problem after remove the bins and items
+    get the unfill bins and the items in the unfill bins
     """
     items = []
     bins = []
-    problem_c = copy.copy(problem)
+    copy_problem = copy.copy(problem)
     for bin in problem.bins:
-        if bin.cur_weight != problem.cap and bin.left_cap != 0:
+        if not bin.isFull() and not bin.isEmpty():
             bins.append(bin)
             for item in bin.inputitem:
                 items.append(item)
     for bin in bins:
-        problem_c.bins.remove(bin)
+        copy_problem.bins.remove(bin)
     for bin in problem.extrabins:
-        if bin.cur_weight != problem.cap and bin.left_cap != 0:
+        if not bin.isFull() and not bin.isEmpty():
             bins.append(bin)
             for item in bin.inputitem:
                 items.append(item)
-        problem_c.extrabins = []
-    return items,bins,problem_c
+        copy_problem.extrabins = []
+    return items,copy_problem
 
 def shaking(problem:Problem):
     """
-    shake the problem that the non filled bins use bestfit to choose
+    shaking algorithm
+    shake bins with unfill items to get a new problem
     """
-    unfillitems,unfillbins,problem_c = getUnfillBins(problem)
-    unfillitems.sort(key = lambda x:x.weight,reverse= True)
-    bin = Bin(problem_c.cap)
-    cid = 0
-    addBinList = [bin]
-    while(len(unfillitems) != 0):
-        toReomveItems = []
-        bin = addBinList[cid]
-        for item in unfillitems:
-            if bin.left_cap >= item.weight:
-                bin.addItem(item)
-                toReomveItems.append(item)
-        for item in toReomveItems:
-            unfillitems.remove(item)
-        if len(unfillitems) != 0:
-            cid += 1
-            bin = Bin(problem.cap)
-            addBinList.append(bin)
-    for bin in addBinList:
-        problem_c.bins.append(bin)
-    problem_c.resetbins()
-    problem = problem_c
-    return problem   
+    unfilled_items, updated_problem = getUnfillBins(problem)
+    unfilled_items.sort(key=lambda x: x.weight, reverse=True)
+    bin_id = 0
+    new_bin = Bin(updated_problem.cap)
+    new_bins_list = [new_bin]
+    while unfilled_items:
+        items_to_remove = []
+        current_bin = new_bins_list[bin_id]
+        for item in unfilled_items:
+            if current_bin.canfit(item):
+                current_bin.addItem(item)
+                items_to_remove.append(item)
+        for item in items_to_remove:
+            unfilled_items.remove(item)
+        if unfilled_items:
+            bin_id += 1
+            new_bin = Bin(updated_problem.cap)
+            new_bins_list.append(new_bin)
+    for bin in new_bins_list:
+        updated_problem.bins.append(bin)
+    updated_problem.resetbins()
+    problem = updated_problem
+    
+    return problem 
 
-def dpAns(space,items:list):
+def best_item_combine(space,items:list):
     """
-    dynamic programming to get the best solution
-    items should no more than 30
+    return the best combination of items and the max weight of the combination
     """
-    list = []
-    dp = []
+    item_inclusion_list = []    #initialize the item inclusion list and max weight list
+    max_weight_list = []
     for i in range(len(items)):
-        dict = {}
-        list.append(dict)
+        item_inclusion_dict = {}
+        item_inclusion_list.append(item_inclusion_dict)
     for j in range(space + 1):
-        dp.append(0)
-    for i in range(0,len(items),1):
-        for j in range(space,-1,-1):
-            list[i][j] = False
+        max_weight_list.append(0)
+    """
+    calculate the max item weight of each space
+    """
+    for i in range(len(items)):
+        for j in range(space, -1, -1):
+            item_inclusion_list[i][j] = False
             if ( j>= items[i].weight ) :
-                if ( dp[j] <= dp[j-items[i].weight]+ items[i].weight ): 
-                    dp[j] = dp[j-items[i].weight]+items[i].weight
-                    list[i][j] = True
-    changeItems = []
-    j = space
-    for i in range(len(items),0,-1):
-        if list[i - 1][j] == True:
-            changeItems.append(items[i - 1])
-            j -= items[i - 1].weight
-    return changeItems,dp[space]
+                if ( max_weight_list[j] <= max_weight_list[j-items[i].weight]+ items[i].weight ): 
+                    max_weight_list[j] = max_weight_list[j-items[i].weight]+items[i].weight
+                    item_inclusion_list[i][j] = True
+    """
+     find the best combination of items 
+    """
+    selected_items = []
+    remaining_space = space
+    for i in range(len(items), 0, -1):
+        if item_inclusion_list[i - 1][remaining_space] == True:
+            selected_items.append(items[i - 1])
+            remaining_space -= items[i - 1].weight
+    
+    return selected_items, max_weight_list[space]
 
-def dfs( cap, num,items,Min,c_list):
+def minimal_cap_left( cap, num,items,min_weight,selected_items):
     """
-    deep first search to get a local solution for 
-    single bin item packing
+    find the minimal cap left
     """
-    Min = min(Min,cap)
+    if min_weight > cap:
+        min_weight = cap
     if (num == len(items)) :
         return
     if (cap-items[num].weight < 0) :
-        dfs(cap,num+1,items,Min,c_list)
+        minimal_cap_left(cap,num+1,items,min_weight,selected_items)
     else:
-        c_list.append(items[num])
-        dfs(cap-items[num].weight ,num+1,items,Min,c_list)
+        selected_items.append(items[num])
+        minimal_cap_left(cap-items[num].weight ,num+1,items,min_weight,selected_items)
 
 def changeItems(morebin,lessbin):
     """
-    change one item from more bin to another bin make the space more
+    change items between two bins
+    return a better result of the two bins
     """
-    clist = []
-    c_sum = 0
+    selected_items = []
+    selected_weight = 0
+    MAXSPACE = 20000
+    MAXITEM = 25
     for item in morebin.inputitem:
         if item.type == "VLarge" :
             continue
-        c_space = morebin.left_cap + item.weight
-        if c_space <= 20000 and len(lessbin.inputitem) <= 25:
+        selected_space = morebin.left_cap + item.weight#the space after adding the item
+        if selected_space <= MAXSPACE and len(lessbin.inputitem) <= MAXITEM: #if the space is less than the max space and the number of items is less than the max item number
             items = lessbin.inputitem
-            clist, c_sum= dpAns(c_space,items)
-            # print(clist, c_sum)
-        else:
-            cap = morebin.cap
-            c_list = []
-            c_sum = c_space
+            selected_items, selected_weight= best_item_combine(selected_space,items)#find the best combination of items
+        else:#if the space is larger than the max space or the number of items is larger than the max item number
+            cap = morebin.cap 
+            selected_items = [] 
+            selected_weight = selected_space 
             items = lessbin.inputitem
-            dfs(cap,0,items,c_sum,c_list)
-            c_sum = c_space - c_sum
-        if c_sum >= item.weight:
-            return c_sum,clist,item
+            minimal_cap_left(cap,0,items,selected_weight,selected_items)#find the minimal cap left
+            selected_weight = selected_space - selected_weight
+        if selected_weight >= item.weight:
+            #if the selected weight is larger than the item weight, return the selected weight, selected items and the item
+            return selected_weight,selected_items,item
     return None,None,None
 def changeItemswithType(morebin,lessbin,type):
     """
-    change one item from more bin to another bin make the space more
+    change items between two bins with the same type
+    return a better result of the two bins
     """
-    clist = []
-    c_sum = 0
+    selected_items = []
+    selected_weight = 0
+    MAXSPACE = 20000
+    MAXITEM = 25
     for item in morebin.inputitem:
         if item.type == type :
-            c_space = morebin.left_cap + item.weight
-            if c_space <= 20000 and len(morebin.inputitem) <= 25:
+            selected_space = morebin.left_cap + item.weight
+            if selected_space <= MAXSPACE and len(morebin.inputitem) <= MAXITEM:
                 items = lessbin.inputitem
-                clist, c_sum= dpAns(c_space,items)
+                selected_items, selected_weight= best_item_combine(selected_space,items)
             else:
                 cap = morebin.cap
-                c_list = []
-                c_sum = c_space
+                selected_items = []
+                selected_weight = selected_space
                 items = lessbin.inputitem
-                dfs(cap,0,items,c_sum,c_list)
-                c_sum = c_space - c_sum
-            if c_sum >= item.weight:
-                return c_sum,clist,item
+                minimal_cap_left(cap,0,items,selected_weight,selected_items)
+                selected_weight = selected_space - selected_weight
+            if selected_weight >= item.weight:
+                return selected_weight,selected_items,item
     return None,None,None
-def split(problem:Problem):
-    """
-    random choose one bin and split it's items to 2 bin
-    """
-    randid = randint(0,problem.bestNum - 1)
-    bin = problem.bins[randid]
-    nbin = Bin(problem.cap)
-    items = []
-    for i in range(int(len(bin.inputitem)/2)):
-        items.append(bin.inputitem[i])
-    for item in items:
-        bin.removeItem(item)
-        nbin.addItem(item)
-    problem.extrabins.append(nbin)
-    return problem
-
 def swap(morebin,lessbin):
     """
-    swap one item from more bin to another bin make the space more
+    swap the items between two bins
+    return the best combination of two bins
     """
     morebin1 = copy.copy(morebin)
     lessbin1 = copy.copy(lessbin)
-    lessbin1.inputitem.sort(key = lambda x:x.weight,reverse = False)
-    morebin1.inputitem.sort(key = lambda x:x.weight,reverse = False)
-    for mitem in morebin1.inputitem:
-        for litem in lessbin1.inputitem:
-            if litem.weight < mitem.weight:
+    lessbin1.inputitem.sort(key = lambda x:x.weight)
+    morebin1.inputitem.sort(key = lambda x:x.weight)
+    for more_item in morebin1.inputitem:
+        for less_item in lessbin1.inputitem:
+            if less_item.weight < more_item.weight:
                 break 
-            if mitem.weight < litem.weight and mitem.weight+morebin1.left_cap >=litem.weight:
-                return litem,mitem
+            if more_item.weight < less_item.weight and more_item.weight+morebin1.left_cap >=less_item.weight:
+                return less_item,more_item
     return None
 
 def randomShake(problem:Problem):
     """
-    choose 2 bin to shake randomly
+    random shake algorithm
+    return a new problem after shaking
     """
     problem.resetbins()
     problem_copy = copy.copy(problem)
-    all_bins = []
-    for bin in problem_copy.bins:
-        all_bins.append(bin)
-    for bin in problem_copy.extrabins:
-        all_bins.append(bin)
-    bin_num = len(all_bins)
-    randBin1 = randint(0,bin_num - 1)
-    randBin2 = randint(0,bin_num - 1)
-    if randBin1 == randBin2:
-        randBin2 +=1 
-        randBin2 %= bin_num
-    bin1 = all_bins[randBin1]
-    bin2 = all_bins[randBin2]
-    if bin1.left_cap > bin2.left_cap:
-        bin_T = bin1 
-        bin1 =  bin2 
-        bin2 = bin_T
-    solution = swap(bin1,bin2) # 2 have more left space
-    if solution != None:
-            bin1.removeItem(solution[1])
-            bin2.removeItem(solution[0])
-            bin1.addItem(solution[0])
-            bin2.addItem(solution[1])
 
-     
+    all_bins = problem_copy.bins + problem_copy.extrabins
+    bin_count = len(all_bins)
+
+    bin_index1, bin_index2 = random.sample(range(bin_count), 2)
+    bin1, bin2 = all_bins[bin_index1], all_bins[bin_index2]
+
+    if bin1.left_cap > bin2.left_cap:
+        bin1, bin2 = bin2, bin1
+
+    solution = swap(bin1, bin2)  # bin2 has more left space
+    if solution is not None:
+        bin1.removeItem(solution[1])
+        bin2.removeItem(solution[0])
+        bin1.addItem(solution[0])
+        bin2.addItem(solution[1])
+
     problem = copy.copy(problem_copy)
     problem.resetbins()
 
@@ -466,29 +403,29 @@ def randomShake(problem:Problem):
 
 def chooseTwoType(problem:Problem,type1,type2):
     """
-    for the item type choose 2 Type of bins
+    choose two types of items and change the items between the bins
     """
-    problem_copy = copy.copy(problem)
-    Type1 = []
-    Type2 = []       
-    for bin in problem_copy.bins:
-        if bin.left_cap == 0:
+    copy_problemopy = copy.copy(problem)
+    bins_without_type1 = []
+    bins_with_type1 = []       
+    
+    for bin in copy_problemopy.bins:
+        if bin.isFull():
             continue
-        flagL = False
-        for item in bin.inputitem:
-            if item.type == type1 :
-                flagL = True
-        if flagL == False:
-            Type1.append(bin)
+        has_type1_item = any(item.type == type1 for item in bin.inputitem)
+        if has_type1_item:
+            bins_with_type1.append(bin)
         else:
-            Type2.append(bin)
-        Type1,Type2 = TypeChange(Type1,Type2,type2)
-    problem = problem_copy
+            bins_without_type1.append(bin)
+    
+    bins_without_type1, bins_with_type1 = TypeChange(bins_without_type1, bins_with_type1, type2)
+    problem = copy_problemopy
+    
     return problem
 
 def TypeChange(Type1:list,Type2:list,type):
     """
-    Change the items in bins of different Types
+    change the items between the two types of bins
     
     """
     Type1_c = copy.copy(Type1)
@@ -496,13 +433,13 @@ def TypeChange(Type1:list,Type2:list,type):
     for morebin in Type1_c:
         toRemove = []
         for lessbin in Type2_c:
-            c_sum,clist,item = changeItemswithType(morebin,lessbin,type)
-            if c_sum == None:
+            selected_weight,selected_items,item = changeItemswithType(morebin,lessbin,type)
+            if selected_weight == None:
                 continue
             else:
                 morebin.removeItem(item)
                 lessbin.addItem(item)
-                for item in clist:
+                for item in selected_items:
                     morebin.addItem(item)
                     lessbin.removeItem(item)
                 break
@@ -511,58 +448,51 @@ def TypeChange(Type1:list,Type2:list,type):
     return Type1_c,Type2_c
 
 def bestfitExtra(problem:Problem):
-    extras = problem.extrabins
-    tempitems = []
-    for bin in extras:
-        for item in bin.inputitem:
-            tempitems.append(item)
-    bin = Bin(problem.cap)
-    cid = 0
-    addBinList = [bin]
-    while(len(tempitems) != 0):
-        toReomveItems = []
-        bin = addBinList[cid]
-        for item in tempitems:
-            if bin.left_cap >= item.weight:
-                bin.addItem(item)
-                toReomveItems.append(item)
-        for item in toReomveItems:
-            tempitems.remove(item)
-        if len(tempitems) != 0:
-            cid += 1
-            bin = Bin(problem.cap)
-            addBinList.append(bin)
-    problem.extrabins = []
-    for bin in addBinList:
-        problem.extrabins.append(bin)
-    return problem
+    """
+    best fit the extra items
+    """
+    temp_items = [item for bin in problem.extrabins for item in bin.inputitem]
+    add_bin_list = [Bin(problem.cap)]
 
-def dealExtra(problem:Problem):  
+    while temp_items:
+        to_remove_items = []
+        current_bin = add_bin_list[-1]
+        for item in temp_items:
+            if current_bin.canfit(item):
+                current_bin.addItem(item)
+                to_remove_items.append(item)
+        temp_items = [item for item in temp_items if item not in to_remove_items]
+
+        if temp_items:
+            add_bin_list.append(Bin(problem.cap))
+
+    problem.extrabins = add_bin_list
+    return problem
+def maintain_extra_bins(problem:Problem): 
     """
-    try to put the items in extra to the other bins
+    maintain the extra bins items
     """
+     
     for morebin in problem.bins:
-        toRemove = []
         for lessbin in problem.extrabins:
-            c_sum,clist,item = changeItems(morebin,lessbin)
-            if c_sum == None:
-                continue
-            else:
+            selected_weight, selected_items, item = changeItems(morebin, lessbin)
+            if selected_weight is not None:
                 morebin.removeItem(item)
                 lessbin.addItem(item)
-                for item in clist:
+                for item in selected_items:
                     morebin.addItem(item)
                     lessbin.removeItem(item)
                 break
-        for bin in toRemove:
-            problem.extrabins.remove(bin)
+    problem.extrabins = [bin for bin in problem.extrabins if not bin.isEmpty()]
     problem.resetbins()
+
     return problem
 
-def bffExtra(problem:Problem):  
+def fit_extraitem(problem:Problem):
     """
-    try to put the items in extra to the other bins
+    fit the extra items
     """
+      
     extraitems = []
     for bin in problem.extrabins:
         for item in bin.inputitem:
@@ -571,7 +501,7 @@ def bffExtra(problem:Problem):
     toRemove = []
     for item in extraitems:
         for bin in problem.bins:
-            if bin.left_cap >= item.weight:
+            if bin.canfit(item):
                 bin.addItem(item)
                 toRemove.append(bin)
                 break
@@ -586,7 +516,7 @@ def bffExtra(problem:Problem):
 
 def checkResult(problem1:Problem,problem2:Problem):
     """
-    Compare the problem result return the better one
+    check the result and return the best result
     """
     if len(problem1.extrabins) < len(problem2.extrabins):
         return problem1
@@ -603,16 +533,23 @@ def checkResult(problem1:Problem,problem2:Problem):
             return problem1
         else:
             return problem2
-def process(problem:Problem,best_problem:Problem):
-    for i in range(30):
-        if i != 0:
-            problem = shaking(problem)
-        problem,best_problem = neighbourhood(problem,best_problem)
-        if len(best_problem.extrabins) == 0:
-            break  
-    return problem, best_problem
+def neighbourhood(problem:Problem,best_problem:Problem):
+    """
+    neighbourhood search algorithm
+    it is composed of low level function combine algorithm and best fit the extra items
+    """
+    problem = chooseTwoType(problem,"VLarge","Large")
+    problem = maintain_extra_bins(problem)
+    problem = fit_extraitem(problem)
+    problem = bestfitExtra(problem)
+    best_problem = checkResult(problem,best_problem)
+    best_problem = bestfitExtra(best_problem)
+    return problem,best_problem
 def variable_neibourhood_search(problem, best_problem):
-    shaking_time = 30
+    """
+    variable neighbourhood search algorithm
+    """
+    shaking_time = 35
     for i in range(shaking_time):
         if i != 0:
             problem = shaking(problem)
@@ -620,28 +557,43 @@ def variable_neibourhood_search(problem, best_problem):
         if len(best_problem.extrabins) <= 1:
             break
     return problem, best_problem
-def neighbourhood(problem:Problem,best_problem:Problem):
-            problem = chooseTwoType(problem,"VLarge","Large")
-            problem = dealExtra(problem)
-            problem = bffExtra(problem)
-            problem = bestfitExtra(problem)
-            best_problem = checkResult(problem,best_problem)
-            best_problem = bestfitExtra(best_problem)
-            return problem,best_problem
+
+def lowlevelcombine(problem, best_problem):
+    """
+    low level function combine algorithm
+    """
+    problem = chooseTwoType(problem,"Large","Mid")
+    problem = maintain_extra_bins(problem)
+    problem = chooseTwoType(problem,"VLarge","Large")
+    problem = fit_extraitem(problem)
+    best_problem = checkResult(problem,best_problem)
+    best_problem = bestfitExtra(best_problem)
+    return problem, best_problem
 def mutipule_randomShake(problem:Problem):
-    for i in range(300):
+    """
+    multiple random shake algorithm
+    """
+    for i in range(500):
         problem = randomShake(problem)
     return problem
-
-def process1(problem:Problem,best_problem:Problem):
+def neighbourhood2(problem:Problem,best_problem:Problem):
+    """
+    neighbourhood search algorithm
+    shake the bins with unfill items
+    then use the low level function combine algorithm to get a better result
+    """
     problem = mutipule_randomShake(problem)
-    problem,best_problem = neighbourhood2(problem,best_problem)
+    problem,best_problem = lowlevelcombine(problem,best_problem)
     return problem, best_problem
-def simulated_annealing(problem, best_problem, temperature=100, cooling_rate=0.8, end_temperature=1):
+def simulated_annealing(problem, best_problem, temperature=100, cooling_rate=0.8, end_temperature=0.1):
+    """
+    simulated annealing algorithm
+    
+    """
     current_problem = problem
     new_problem = problem
     while temperature > end_temperature:
-        new_problem, best_problem = process1(new_problem, best_problem)
+        new_problem, best_problem = neighbourhood2(new_problem, best_problem)
         if len(best_problem.extrabins) == 0:
             break
         delta = len(new_problem.extrabins) - len(current_problem.extrabins)
@@ -652,26 +604,13 @@ def simulated_annealing(problem, best_problem, temperature=100, cooling_rate=0.8
                 current_problem = new_problem
         temperature *= cooling_rate
     return new_problem, best_problem
-def neighbourhood2(problem, best_problem):
-    problem = chooseTwoType(problem,"Large","Mid")
-    problem = dealExtra(problem)
-    problem = chooseTwoType(problem,"VLarge","Large")
-    problem = bffExtra(problem)
-    best_problem = checkResult(problem,best_problem)
-    best_problem = bestfitExtra(best_problem)
-    return problem, best_problem
-def process2(problem,best_problem):
-     for i in range(20):
-            if i%3 == 0:
-                problem  = split(problem)
-            for t in range(300):
-                problem = randomShake(problem)
-            problem,best_problem = neighbourhood2(problem,best_problem)
-            if len(best_problem.extrabins) == 0:
-                break
-     return problem, best_problem
 def HyperHeuristic(problem:Problem,best_problem:Problem):
-    for i in range(6):
+    """
+    selection hyper heuristic algorithm
+    it is composed of simulated annealing and variable neighbourhood search
+    depending on the number of extra bins, it will choose the best algorithm
+    """
+    for i in range(10):
         if len(best_problem.extrabins) >2:
             problem,best_problem = simulated_annealing(problem,best_problem)    
         else:
@@ -695,11 +634,7 @@ def main():
         print("Running time ",endT - startT)
         totaltime += (endT - startT)
         problemsolutionlist.append(problem)
-        
-
     output(problemsolutionlist,sys.argv[4])
     print(totaltime)
-        
-
- 
-main()
+if __name__ == "__main__":
+    main()
