@@ -470,7 +470,7 @@ def bestfitExtra(problem:Problem):
     return problem
 def maintain_extra_bins(problem:Problem): 
     """
-    maintain the extra bins items
+    maintain the extrabins items
     """
      
     for morebin in problem.bins:
@@ -490,7 +490,7 @@ def maintain_extra_bins(problem:Problem):
 
 def fit_extraitem(problem:Problem):
     """
-    fit the extra items
+    fit the extra items into the bins
     """
       
     extraitems = []
@@ -553,8 +553,10 @@ def variable_neibourhood_search(problem, best_problem):
     for i in range(shaking_time):
         if i != 0:
             problem = shaking(problem)
+            problem = shaking(problem)
+            problem = shaking(problem)
         problem,best_problem= neighbourhood(problem, best_problem)
-        if len(best_problem.extrabins) <= 1:
+        if len(best_problem.extrabins) ==0:
             break
     return problem, best_problem
 
